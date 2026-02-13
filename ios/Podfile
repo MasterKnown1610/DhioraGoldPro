@@ -17,6 +17,9 @@ end
 target 'GoldAppLive' do
   config = use_native_modules!
 
+  # React Native Vector Icons - required for icon fonts
+  pod 'RNVectorIcons', :path => '../node_modules/react-native-vector-icons'
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

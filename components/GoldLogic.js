@@ -29,6 +29,10 @@ const GoldLogic = ({ navigation }) => {
             title="Purity Generator"
             onPress={() => navigation.navigate('Purity Generator')}
           />
+          <CustomButton
+            title="Register Shop"
+            onPress={() => navigation.navigate('Register Shop')}
+          />
         </View>
         {/* <View style={styles.row}>
          

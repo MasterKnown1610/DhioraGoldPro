@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet, SafeAreaView } from 'react-native';
 import CustomButton from './CustomButton';
 
 const GoldConverter = () => {
@@ -87,6 +87,7 @@ const GoldConverter = () => {
   };
 
   return (
+    <SafeAreaView style={styles.wrapper}>
     <View style={styles.container}>
       <View style={styles.inputContainer}>
         <View style={styles.inputBox}>
@@ -139,10 +140,14 @@ const GoldConverter = () => {
       </View>
       
     </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     padding: 16,

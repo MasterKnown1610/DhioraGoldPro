@@ -1,6 +1,6 @@
 // PurityCalculatorScreen.js
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import CustomButton from './CustomButton';
 
 const PurityCalculator = () => {
@@ -57,6 +57,7 @@ const PurityCalculator = () => {
   };
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <ScrollView style={styles.container}>
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Weight:</Text>
@@ -115,10 +116,14 @@ const PurityCalculator = () => {
         {/* Add more Text components for additional results */}
       </ScrollView>
     </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     padding: 16,
