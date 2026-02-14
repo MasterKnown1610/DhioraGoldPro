@@ -33,7 +33,18 @@ const DashboardScreen = ({ navigation }) => {
           onProfilePress={() => navigation.getParent()?.navigate('Profile')}
           colors={theme.colors}
         />
-        <SearchBar value={searchQuery} onChangeText={setSearchQuery} colors={theme.colors} />
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          colors={theme.colors}
+          editable={false}
+          onPress={() => {
+            navigation.getParent()?.navigate('Shops', {
+              screen: 'ShopsList',
+              params: { focusSearch: true },
+            });
+          }}
+        />
         <PromotionAutoScroller onSlidePress={(slide) => {}} colors={theme.colors} />
         <BrowseCards
           selected={browseMode}
@@ -47,11 +58,7 @@ const DashboardScreen = ({ navigation }) => {
           }}
           colors={theme.colors}
         />
-        <CuratedBoutiques
-          onViewAll={() => {}}
-          onBoutiquePress={(item) => {}}
-          colors={theme.colors}
-        />
+       
         <View style={styles.toolsSection}>
           <Text style={[styles.toolsTitle, { color: theme.colors.text }]}>Tools</Text>
           <CustomButton title="Gold Converter" onPress={() => navigation.navigate('Gold Converter')} />
@@ -59,6 +66,11 @@ const DashboardScreen = ({ navigation }) => {
           <CustomButton title="Purity Calculator" onPress={() => navigation.navigate('Purity Calculator')} />
           <CustomButton title="Purity Generator" onPress={() => navigation.navigate('Purity Generator')} />
         </View>
+        {/* <CuratedBoutiques
+          onViewAll={() => {}}
+          onBoutiquePress={(item) => {}}
+          colors={theme.colors}
+        /> */}
       </ScrollView>
     </SafeAreaView>
   );

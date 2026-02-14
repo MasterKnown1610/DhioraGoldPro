@@ -41,6 +41,10 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photos to add profile and shop images.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to take photos for your profile and shop.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

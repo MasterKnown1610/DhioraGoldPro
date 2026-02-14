@@ -7,7 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Text,
+  ActivityIndicator,
 } from 'react-native';
+import { API_URLS } from '../../service/config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HORIZONTAL_PADDING = 16;
@@ -16,45 +18,39 @@ const PROMO_HEIGHT = 160;
 const BORDER_RADIUS = 16;
 const AUTO_SCROLL_INTERVAL = 4000;
 
-const UNSPLASH = (id, w = 800) =>
-  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=80`;
-
-const PROMO_SLIDES = [
-  {
-    id: '1',
-    image: { uri: UNSPLASH('1610375461244-8d4e2b5c3b9a') },
-    title: 'Pure Gold Excellence',
-    subtitle: 'Trusted purity & craftsmanship',
-  },
-  {
-    id: '2',
-    image: { uri: UNSPLASH('1515562141207-7a88fb7ce338') },
-    title: 'Premium Gold Jewelry',
-    subtitle: 'Fine craftsmanship & design',
-  },
-  {
-    id: '3',
-    image: { uri: UNSPLASH('1573408301185-9146fe634ad0') },
-    title: '24K Gold Coins',
-    subtitle: 'Invest in timeless value',
-  },
-  {
-    id: '4',
-    image: { uri: UNSPLASH('1490481651871-ab68de25d43d') },
-    title: 'Premium Gold Collection',
-    subtitle: 'Explore our curated boutiques',
-  },
-];
-
 const PromotionAutoScroller = ({ onSlidePress, colors = {} }) => {
   const c = { accent: '#F8C24D', textSecondary: '#555', overlay: 'rgba(0,0,0,0.35)', ...colors };
+  const [promotions, setPromotions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef(null);
 
   useEffect(() => {
+    let mounted = true;
+    fetch(API_URLS.Promotions)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!mounted) return;
+        if (data?.success && Array.isArray(data.data)) {
+          setPromotions(data.data);
+        } else {
+          setPromotions([]);
+        }
+      })
+      .catch(() => {
+        if (mounted) setPromotions([]);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (promotions.length <= 1) return;
     const timer = setInterval(() => {
       setActiveIndex((prev) => {
-        const next = (prev + 1) % PROMO_SLIDES.length;
+        const next = (prev + 1) % promotions.length;
         flatListRef.current?.scrollToOffset({
           offset: next * (SLIDE_WIDTH + 12),
           animated: true,
@@ -63,34 +59,54 @@ const PromotionAutoScroller = ({ onSlidePress, colors = {} }) => {
       });
     }, AUTO_SCROLL_INTERVAL);
     return () => clearInterval(timer);
-  }, []);
+  }, [promotions.length]);
 
   const onMomentumScrollEnd = (e) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / (SLIDE_WIDTH + 12));
-    setActiveIndex(Math.min(index, PROMO_SLIDES.length - 1));
+    setActiveIndex(Math.min(index, Math.max(0, promotions.length - 1)));
   };
 
-  const renderSlide = ({ item }) => (
-    <TouchableOpacity
-      style={styles.slide}
-      onPress={() => onSlidePress?.(item)}
-      activeOpacity={1}
-    >
-      <Image source={item.image} style={styles.image} resizeMode="cover" />
-      <View style={[styles.overlay, { backgroundColor: c.overlay }]}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={[styles.subtitle, { color: c.accent }]}>{item.subtitle}</Text>
+  const renderSlide = ({ item }) => {
+    const imageSource = item.imageUrl
+      ? { uri: item.imageUrl }
+      : require('../../assets/birdGold.png');
+    const subtitle = item.description?.trim()
+      ? (item.description.length > 60 ? item.description.slice(0, 60) + '…' : item.description)
+      : 'Tap for details';
+    return (
+      <TouchableOpacity
+        style={styles.slide}
+        onPress={() => onSlidePress?.(item)}
+        activeOpacity={1}
+      >
+        <Image source={imageSource} style={styles.image} resizeMode="cover" />
+        <View style={[styles.overlay, { backgroundColor: c.overlay }]}>
+          <Text style={styles.title}>{item.title || 'Promotion'}</Text>
+          <Text style={[styles.subtitle, { color: c.accent }]}>{subtitle}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingWrap]}>
+        <ActivityIndicator size="large" color={c.accent} />
       </View>
-    </TouchableOpacity>
-  );
+    );
+  }
+
+  if (promotions.length === 0) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
       <FlatList
         ref={flatListRef}
-        data={PROMO_SLIDES}
+        data={promotions}
         renderItem={renderSlide}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         horizontal
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onMomentumScrollEnd}
@@ -100,7 +116,7 @@ const PromotionAutoScroller = ({ onSlidePress, colors = {} }) => {
         snapToAlignment="start"
       />
       <View style={styles.pagination}>
-        {PROMO_SLIDES.map((_, index) => (
+        {promotions.map((_, index) => (
           <View
             key={index}
             style={[
@@ -118,6 +134,11 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 20,
     paddingHorizontal: HORIZONTAL_PADDING,
+  },
+  loadingWrap: {
+    height: PROMO_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   listContent: {
     paddingRight: HORIZONTAL_PADDING,

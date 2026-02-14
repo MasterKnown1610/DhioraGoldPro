@@ -8,9 +8,16 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  Image,
+  TouchableOpacity,
 } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import Context from '../context/Context';
 import CustomButton from './CustomButton';
+import LocationPicker from './LocationPicker';
+
+const MAX_IMAGES = 5;
 
 const DAYS = [
   { key: 'monday', label: 'Monday' },
@@ -25,18 +32,20 @@ const DAYS = [
 const initialOpeningHours = () =>
   DAYS.reduce((acc, { key }) => ({ ...acc, [key]: { open: '', close: '' } }), {});
 
-const ShopRegistration = () => {
-  const { shops } = useContext(Context);
+const ShopRegistration = ({ navigation }) => {
+  const { auth, theme } = useContext(Context);
+  const c = theme.colors;
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     shopName: '',
     address: '',
     pincode: '',
-    phoneNumber: '',
     whatsappNumber: '',
     state: '',
     district: '',
+    city: '',
   });
+  const [shopImages, setShopImages] = useState([]);
   const [openingHours, setOpeningHours] = useState(initialOpeningHours());
 
   const updateForm = (name, value) => {
@@ -51,7 +60,17 @@ const ShopRegistration = () => {
   };
 
   const handleSubmit = async () => {
-    const required = ['shopName', 'address', 'pincode', 'phoneNumber', 'state', 'district'];
+    if (!auth.token) {
+      Alert.alert('Login Required', 'Please login first to register a shop.');
+      navigation.navigate('Login');
+      return;
+    }
+    if (!auth.user?.phoneNumber) {
+      Alert.alert('Phone Required', 'Please log in with a phone number to register a shop.');
+      return;
+    }
+
+    const required = ['shopName', 'address', 'pincode', 'state', 'district', 'city'];
     const missing = required.filter((f) => !form[f]?.trim());
     if (missing.length) {
       Alert.alert('Error', `Please fill: ${missing.join(', ')}`);
@@ -61,12 +80,19 @@ const ShopRegistration = () => {
     setLoading(true);
     try {
       const formData = new FormData();
+      shopImages.forEach((img) => {
+        formData.append('images', {
+          uri: img.uri,
+          type: img.type || 'image/jpeg',
+          name: img.fileName || `shop-${Date.now()}.jpg`,
+        });
+      });
       formData.append('shopName', form.shopName.trim());
       formData.append('address', form.address.trim());
       formData.append('pincode', form.pincode.trim());
-      formData.append('phoneNumber', form.phoneNumber.trim());
       formData.append('state', form.state.trim());
       formData.append('district', form.district.trim());
+      if (form.city?.trim()) formData.append('city', form.city.trim());
       if (form.whatsappNumber?.trim()) {
         formData.append('whatsappNumber', form.whatsappNumber.trim());
       }
@@ -82,9 +108,20 @@ const ShopRegistration = () => {
         formData.append('openingHours', JSON.stringify(hoursObj));
       }
 
-      await shops.registerShop(formData);
-      Alert.alert('Success', 'Shop registered successfully');
-      setForm({ shopName: '', address: '', pincode: '', phoneNumber: '', whatsappNumber: '', state: '', district: '' });
+      await auth.registerShop(formData);
+      Alert.alert('Success', 'Shop registered successfully.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+      setForm({
+        shopName: '',
+        address: '',
+        pincode: '',
+        whatsappNumber: '',
+        state: '',
+        district: '',
+        city: '',
+      });
+      setShopImages([]);
       setOpeningHours(initialOpeningHours());
     } catch (e) {
       Alert.alert('Error', e.message || 'Failed to register shop');
@@ -93,32 +130,122 @@ const ShopRegistration = () => {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-    <ScrollView style={styles.container}>
-      <Text style={styles.sectionTitle}>Shop Details</Text>
-      {[
-        { key: 'shopName', label: 'Shop Name' },
-        { key: 'address', label: 'Address' },
-        { key: 'pincode', label: 'Pincode' },
-        { key: 'phoneNumber', label: 'Phone Number' },
-        { key: 'whatsappNumber', label: 'WhatsApp Number (Optional)' },
-        { key: 'state', label: 'State' },
-        { key: 'district', label: 'District' },
-      ].map(({ key, label }) => (
-        <View key={key} style={styles.inputContainer}>
-          <Text style={styles.label}>{label}:</Text>
-          <TextInput
-            style={styles.input}
-            placeholder={key === 'whatsappNumber' ? 'Optional' : `Enter ${label.toLowerCase()}`}
-            value={form[key]}
-            onChangeText={(v) => updateForm(key, v)}
-            keyboardType={key.includes('Number') || key === 'pincode' ? 'phone-pad' : 'default'}
-          />
-        </View>
-      ))}
+  const phoneOrEmail = auth.user?.phoneNumber || auth.user?.email || '';
 
-      <Text style={[styles.sectionTitle, styles.marginTop]}>Opening Hours (Optional)</Text>
+  const pickShopImages = () => {
+    const remaining = MAX_IMAGES - shopImages.length;
+    if (remaining <= 0) {
+      Alert.alert('Limit', `Maximum ${MAX_IMAGES} images allowed`);
+      return;
+    }
+    launchImageLibrary({ mediaType: 'photo', selectionLimit: remaining, quality: 0.8 }, (res) => {
+      if (res.didCancel) return;
+      if (res.errorCode) {
+        Alert.alert('Error', res.errorMessage || 'Failed to pick images');
+        return;
+      }
+      if (res.assets?.length) {
+        setShopImages((prev) => [...prev, ...res.assets].slice(0, MAX_IMAGES));
+      }
+    });
+  };
+
+  const removeShopImage = (index) => {
+    setShopImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
+    <ScrollView style={[styles.container, { backgroundColor: c.background }]}>
+      <Text style={[styles.sectionTitle, { color: c.text }]}>Register as Shop</Text>
+      <Text style={[styles.fixedInfo, { color: c.textSecondary }]}>
+        Phone: {phoneOrEmail || '— (log in with phone to register)'}
+      </Text>
+      <View style={styles.imageSection}>
+        <Text style={[styles.label, { color: c.text }]}>Shop Images (Optional, max {MAX_IMAGES})</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageList}>
+          {shopImages.map((img, index) => (
+            <View key={index} style={styles.imageItem}>
+              <Image source={{ uri: img.uri }} style={styles.shopImagePreview} />
+              <TouchableOpacity
+                style={styles.removeImageBtn}
+                onPress={() => removeShopImage(index)}
+              >
+                <Icon name="close" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          ))}
+          {shopImages.length < MAX_IMAGES && (
+            <TouchableOpacity
+              style={[styles.addImageBtn, { backgroundColor: c.surface, borderColor: c.border }]}
+              onPress={pickShopImages}
+            >
+              <Icon name="add-a-photo" size={32} color={c.textSecondary} />
+              <Text style={[styles.addImageText, { color: c.textSecondary }]}>Add</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={[styles.label, { color: c.text }]}>Shop Name *</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
+          placeholder="Enter shop name"
+          placeholderTextColor={c.textSecondary}
+          value={form.shopName}
+          onChangeText={(v) => updateForm('shopName', v)}
+          editable={!!auth.token}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <Text style={[styles.label, { color: c.text }]}>Address *</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
+          placeholder="Enter address"
+          placeholderTextColor={c.textSecondary}
+          value={form.address}
+          onChangeText={(v) => updateForm('address', v)}
+          editable={!!auth.token}
+        />
+      </View>
+
+      <LocationPicker
+        state={form.state}
+        district={form.district}
+        city={form.city}
+        onStateChange={(v) => updateForm('state', v)}
+        onDistrictChange={(v) => updateForm('district', v)}
+        onCityChange={(v) => updateForm('city', v)}
+        colors={c}
+      />
+
+      <View style={styles.inputContainer}>
+        <Text style={[styles.label, { color: c.text }]}>Pincode *</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
+          placeholder="Enter pincode"
+          placeholderTextColor={c.textSecondary}
+          value={form.pincode}
+          onChangeText={(v) => updateForm('pincode', v)}
+          keyboardType="phone-pad"
+          editable={!!auth.token}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <Text style={[styles.label, { color: c.text }]}>WhatsApp Number (Optional)</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
+          placeholder="Optional"
+          placeholderTextColor={c.textSecondary}
+          value={form.whatsappNumber}
+          onChangeText={(v) => updateForm('whatsappNumber', v)}
+          keyboardType="phone-pad"
+          editable={!!auth.token}
+        />
+      </View>
+
+      <Text style={[styles.sectionTitle, styles.marginTop, { color: c.text }]}>Opening Hours (Optional)</Text>
       <Text style={styles.hint}>Use 24h format, e.g. 09:00, 18:00. Leave empty for closed days.</Text>
       {DAYS.map(({ key, label }) => (
         <View key={key} style={styles.dayRow}>
@@ -165,7 +292,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
-    color: '#000',
+  },
+  fixedInfo: {
+    fontSize: 12,
+    marginBottom: 16,
   },
   marginTop: {
     marginTop: 24,
@@ -226,6 +356,46 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 24,
+  },
+  imageSection: {
+    marginBottom: 16,
+  },
+  imageList: {
+    flexGrow: 0,
+    marginTop: 8,
+  },
+  imageItem: {
+    marginRight: 12,
+    position: 'relative',
+  },
+  shopImagePreview: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addImageBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addImageText: {
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,37 +9,54 @@ import {
   Image,
   ImageBackground,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Context from '../../context/Context';
 
-const WHATSAPP_NUMBER = '919505143534';
 const DEFAULT_MESSAGE = 'Hi, I would like to connect regarding your services.';
 
-const DEFAULT_USER = {
-  id: '0',
-  name: 'Alexander Sterling',
-  profession: 'BESPOKE ARCHITECTURAL CONSULTANT',
-  location: 'Upper East Side, New York, NY',
-  experience: '15 Yrs',
-  rating: 4.9,
-  projects: '120+',
-  servicePhilosophy:
-    'Crafting timeless spaces through the intersection of classical aesthetics and modern functionality. Specializing in high-end residential estates and private boutique commercial developments across the Tri-State area.',
-  serviceArea: 'AVAILABLE IN MANHATTAN & BROOKLYN',
-  image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
-};
-
 const UserDetailsScreen = ({ route, navigation }) => {
-  const { theme } = useContext(Context);
+  const { theme, users } = useContext(Context);
   const c = theme.colors;
   const passedUser = route?.params?.user || {};
-  const user = { ...DEFAULT_USER, ...passedUser };
+  const userId = route?.params?.userId;
+  const needsFetch = !!userId && !passedUser?.userName;
+  const [loading, setLoading] = useState(needsFetch);
+
+  const user = passedUser?.userName ? passedUser : (users.singleUser || passedUser);
+
+  useEffect(() => {
+    if (needsFetch && userId) {
+      users.getUserById(userId).finally(() => setLoading(false));
+    }
+  }, [userId, needsFetch]);
+
+  const phone = user?.phoneNumber;
 
   const openWhatsApp = () => {
-    const text = encodeURIComponent(DEFAULT_MESSAGE);
-    Linking.openURL(`https://wa.me/${WHATSAPP_NUMBER}?text=${text}`);
+    const num = (phone || '').replace(/\D/g, '');
+    if (num) {
+      const text = encodeURIComponent(DEFAULT_MESSAGE);
+      Linking.openURL(`https://wa.me/${num}?text=${text}`);
+    }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={c.accent} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const displayName = user?.userName || user?.name;
+  const profession = user?.serviceProvided || user?.profession;
+  const location = [user?.address, user?.district, user?.state].filter(Boolean).join(', ') || user?.location;
+  const servicePhilosophy = user?.servicePhilosophy || user?.serviceProvided || 'Service provider.';
+  const serviceArea = user?.serviceArea || [user?.district, user?.state].filter(Boolean).join(' & ') || '';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
@@ -58,73 +75,57 @@ const UserDetailsScreen = ({ route, navigation }) => {
 
         <View style={styles.profileSection}>
           <View style={[styles.avatarWrapper, { borderColor: c.accent }]}>
-            {user.image ? (
-              <Image source={{ uri: user.image }} style={styles.avatar} resizeMode="cover" />
+            {(user?.profileImage || user?.image) ? (
+              <Image source={{ uri: user.profileImage || user.image }} style={styles.avatar} resizeMode="cover" />
             ) : (
               <View style={[styles.avatarPlaceholder, { backgroundColor: c.surfaceSecondary }]}>
                 <Icon name="person" size={64} color={c.accent} />
               </View>
             )}
-            <View style={[styles.settingsBadge, { backgroundColor: c.surface }]}>
-              <Icon name="settings" size={18} color={c.accent} />
+          </View>
+          <Text style={[styles.name, { color: c.text }]}>{displayName}</Text>
+          <Text style={[styles.profession, { color: c.accent }]}>{profession}</Text>
+          {location ? (
+            <View style={styles.locationRow}>
+              <Icon name="location-on" size={16} color={c.text} />
+              <Text style={[styles.location, { color: c.text }]}>{location}</Text>
             </View>
-          </View>
-          <Text style={[styles.name, { color: c.text }]}>{user.name}</Text>
-          <Text style={[styles.profession, { color: c.accent }]}>{user.profession}</Text>
-          <View style={styles.locationRow}>
-            <Icon name="location-on" size={16} color={c.text} />
-            <Text style={[styles.location, { color: c.text }]}>{user.location}</Text>
-          </View>
+          ) : null}
+        </View>
 
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: c.surface }]}>
-              <Text style={[styles.statLabel, { color: c.textSecondary }]}>EXPERIENCE</Text>
-              <Text style={[styles.statValue, { color: c.text }]}>{user.experience || '15 Yrs'}</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: c.surface }]}>
-              <Text style={[styles.statLabel, { color: c.textSecondary }]}>RATING</Text>
-              <View style={styles.ratingRow}>
-                <Icon name="star" size={16} color={c.accent} />
-                <Text style={[styles.statValue, { color: c.text }]}>{user.rating || '4.9'}</Text>
+        {phone ? (
+          <View style={[styles.contactCard, { backgroundColor: c.surface }]}>
+            <Text style={[styles.phoneLabel, { color: c.textSecondary }]}>Contact</Text>
+            <Text style={[styles.phoneNumber, { color: c.text }]}>{phone}</Text>
+            <TouchableOpacity
+              style={[styles.loginBtn, { backgroundColor: c.accent }]}
+              onPress={openWhatsApp}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.loginBtnText, { color: c.accentText }]}>MESSAGE ON WHATSAPP</Text>
+              <Icon name="arrow-forward" size={18} color={c.accentText} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <Text style={[styles.sectionTitle, { color: c.accent }]}>SERVICE PROVIDED</Text>
+        <Text style={[styles.sectionText, { color: c.text }]}>{servicePhilosophy}</Text>
+
+        {serviceArea ? (
+          <>
+            <Text style={[styles.sectionTitle, { color: c.accent }]}>SERVICE AREA</Text>
+            {/* <ImageBackground
+              source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800' }}
+              style={[styles.mapArea, { backgroundColor: c.surface }]}
+              imageStyle={styles.mapImage}
+            > */}
+              <View style={styles.mapOverlay}>
+                <View style={[styles.mapDot, { backgroundColor: c.accent }]} />
+                <Text style={[styles.mapText, { color: c.text }]}>{serviceArea}</Text>
               </View>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: c.surface }]}>
-              <Text style={[styles.statLabel, { color: c.textSecondary }]}>PROJECTS</Text>
-              <Text style={[styles.statValue, { color: c.text }]}>{user.projects || '120+'}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.contactCard, { backgroundColor: c.surface }]}>
-          <View style={styles.blurredRow}>
-            <Text style={[styles.blurredText, { color: c.textSecondary }]}>••••••••••••••••••</Text>
-            <Icon name="lock" size={18} color={c.textSecondary} />
-          </View>
-          <TouchableOpacity
-            style={[styles.loginBtn, { backgroundColor: c.accent }]}
-            onPress={() => {}}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.loginBtnText, { color: c.accentText }]}>LOGIN TO VIEW CONTACT</Text>
-            <Icon name="arrow-forward" size={18} color={c.accentText} />
-          </TouchableOpacity>
-          <Text style={[styles.premiumLabel, { color: c.textSecondary }]}>PREMIUM MEMBERS ONLY</Text>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: c.accent }]}>SERVICE PHILOSOPHY</Text>
-        <Text style={[styles.sectionText, { color: c.text }]}>{user.servicePhilosophy}</Text>
-
-        <Text style={[styles.sectionTitle, { color: c.accent }]}>SERVICE AREA</Text>
-        <ImageBackground
-          source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800' }}
-          style={[styles.mapArea, { backgroundColor: c.surface }]}
-          imageStyle={styles.mapImage}
-        >
-          <View style={styles.mapOverlay}>
-            <View style={[styles.mapDot, { backgroundColor: c.accent }]} />
-            <Text style={[styles.mapText, { color: c.text }]}>{user.serviceArea}</Text>
-          </View>
-        </ImageBackground>
+            {/* </ImageBackground> */}
+          </>
+        ) : null}
 
         <View style={styles.actionsRow}>
           <TouchableOpacity
@@ -279,6 +280,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     marginTop: 10,
+  },
+  phoneLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  phoneNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  loadingWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 14,

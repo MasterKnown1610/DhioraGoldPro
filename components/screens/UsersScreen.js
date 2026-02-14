@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,143 +8,53 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Context from '../../context/Context';
-
-const MOCK_USERS = [
-  {
-    id: '1',
-    name: 'Alexander Sterling',
-    profession: 'BESPOKE ARCHITECTURAL CONSULTANT',
-    location: 'Upper East Side, New York, NY',
-    rating: 4.9,
-    status: 'AVAILABLE NOW',
-    verified: true,
-    isFavorite: false,
-    experience: '15 Yrs',
-    projects: '120+',
-    servicePhilosophy:
-      'Crafting timeless spaces through the intersection of classical aesthetics and modern functionality. Specializing in high-end residential estates and private boutique commercial developments across the Tri-State area.',
-    serviceArea: 'AVAILABLE IN MANHATTAN & BROOKLYN',
-    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
-  },
-  {
-    id: '2',
-    name: 'Elena Rodriguez',
-    profession: 'LUXURY ARCHITECT',
-    location: 'Miami, FL',
-    rating: 5.0,
-    status: 'NEXT SLOT: TOMORROW',
-    verified: false,
-    isFavorite: true,
-    experience: '12 Yrs',
-    projects: '85+',
-    servicePhilosophy:
-      'Blending contemporary design with sustainable practices. Focused on creating iconic structures that inspire and endure.',
-    serviceArea: 'AVAILABLE IN MIAMI & SOUTH FLORIDA',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400',
-  },
-  {
-    id: '3',
-    name: 'Marcus Thorne',
-    profession: 'BESPOKE TAILORING',
-    location: 'Beverly Hills, CA',
-    rating: 4.8,
-    status: 'PREMIUM PARTNER',
-    verified: false,
-    isFavorite: false,
-    experience: '20 Yrs',
-    projects: '200+',
-    servicePhilosophy:
-      'Handcrafted luxury tailoring for discerning clients. Every garment tells a story of precision and elegance.',
-    serviceArea: 'AVAILABLE IN LOS ANGELES & BEVERLY HILLS',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-  },
-  {
-    id: '4',
-    name: 'Sarah Jenkins',
-    profession: 'JEWELRY DESIGNER',
-    location: 'Dallas, TX',
-    rating: 4.9,
-    status: 'AVAILABLE NOW',
-    verified: false,
-    isFavorite: false,
-    experience: '8 Yrs',
-    projects: '45+',
-    servicePhilosophy:
-      'Creating bespoke jewelry that celebrates life\'s milestones. Fine craftsmanship meets contemporary design.',
-    serviceArea: 'AVAILABLE IN DALLAS & NORTH TEXAS',
-    image: null,
-  },
-];
-
-const FilterButton = ({ label, onPress, colors }) => (
-  <TouchableOpacity
-    style={[styles.filterBtn, { backgroundColor: colors.surface }]}
-    onPress={onPress}
-    activeOpacity={0.8}
-  >
-    <Text style={[styles.filterLabel, { color: colors.text }]}>{label}</Text>
-    <Icon name="keyboard-arrow-down" size={20} color={colors.textSecondary} />
-  </TouchableOpacity>
-);
+import FilterModal from '../FilterModal';
 
 const UserCard = ({ item, colors, onViewProfile }) => {
   const c = colors;
-  const [isFavorite, setIsFavorite] = useState(item.isFavorite);
+  const image = item.profileImage || item.image;
+  const name = item.userName || item.name;
+  const profession = item.serviceProvided || item.profession;
+  const location = [item.address, item.district, item.state].filter(Boolean).join(', ') || item.location;
 
   return (
     <View style={[styles.card, { backgroundColor: c.surface }]}>
       <View style={styles.cardInner}>
         <View style={styles.profileRow}>
           <View style={styles.imageWrapper}>
-            {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.avatar} resizeMode="cover" />
+            {image ? (
+              <Image source={{ uri: image }} style={styles.avatar} resizeMode="cover" />
             ) : (
               <View style={[styles.avatarPlaceholder, { backgroundColor: c.surfaceSecondary }]}>
                 <Icon name="person" size={40} color={c.accent} />
               </View>
             )}
-            {item.verified && (
-              <View style={[styles.verifiedBadge, { backgroundColor: c.accent }]}>
-                <Icon name="check" size={14} color={c.accentText} />
-              </View>
-            )}
           </View>
           <View style={styles.infoBlock}>
             <Text style={[styles.name, { color: c.text }]} numberOfLines={1}>
-              {item.name}
+              {name}
             </Text>
             <Text style={[styles.profession, { color: c.accent }]} numberOfLines={1}>
-              {item.profession}
+              {profession}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => setIsFavorite(!isFavorite)}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={styles.favoriteBtn}
-          >
-            <Icon
-              name={isFavorite ? 'favorite' : 'favorite-border'}
-              size={24}
-              color={isFavorite ? c.accent : c.textSecondary}
-            />
-          </TouchableOpacity>
         </View>
 
-        <View style={styles.locationRow}>
-          <Icon name="location-on" size={14} color={c.textSecondary} />
-          <Text style={[styles.location, { color: c.textSecondary }]} numberOfLines={1}>
-            {item.location}
-          </Text>
-          <Text style={[styles.separator, { color: c.textSecondary }]}> • </Text>
-          <Icon name="star" size={14} color={c.accent} />
-          <Text style={[styles.rating, { color: c.textSecondary }]}>{item.rating}</Text>
-        </View>
+        {location ? (
+          <View style={styles.locationRow}>
+            <Icon name="location-on" size={14} color={c.textSecondary} />
+            <Text style={[styles.location, { color: c.textSecondary }]} numberOfLines={1}>
+              {location}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.bottomRow}>
-          <Text style={[styles.status, { color: c.textSecondary }]}>{item.status}</Text>
           <TouchableOpacity
             style={styles.viewProfileBtn}
             onPress={() => onViewProfile?.(item)}
@@ -160,9 +70,45 @@ const UserCard = ({ item, colors, onViewProfile }) => {
 };
 
 const UsersScreen = ({ navigation }) => {
-  const { theme } = useContext(Context);
+  const { theme, users } = useContext(Context);
   const c = theme.colors;
   const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({ state: '', district: '', pincode: '' });
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+
+  const buildParams = useCallback((q, f) => {
+    const params = {};
+    if (q.trim()) params.search = q.trim();
+    if (f?.state) params.state = f.state;
+    if (f?.district) params.district = f.district;
+    if (f?.pincode) params.pincode = f.pincode;
+    return params;
+  }, []);
+
+  const loadUsers = useCallback(
+    async (filterOverride) => {
+      const f = filterOverride !== undefined ? filterOverride : filters;
+      const params = buildParams(searchQuery, f);
+      await users.getUsers(params);
+    },
+    [searchQuery, filters, buildParams, users]
+  );
+
+  useEffect(() => {
+    const t = setTimeout(() => loadUsers(), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const handleApplyFilters = useCallback(
+    (newFilters) => {
+      setFilters(newFilters);
+      loadUsers(newFilters);
+    },
+    [loadUsers]
+  );
+
+  const hasActiveFilters = !!(filters.state || filters.district || filters.pincode);
+  const userList = users.users || [];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
@@ -179,30 +125,47 @@ const UsersScreen = ({ navigation }) => {
           />
         </View>
         <TouchableOpacity
-          style={[styles.filterIconBtn, { backgroundColor: c.surface }]}
+          style={[styles.filterIconBtn, { backgroundColor: c.surface }, hasActiveFilters && styles.filterBtnActive]}
+          onPress={() => setFilterModalOpen(true)}
           activeOpacity={0.8}
         >
-          <Icon name="filter-list" size={24} color={c.text} />
+          <Icon name="filter-list" size={24} color={hasActiveFilters ? c.accent : c.text} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.filterRow}>
-        <FilterButton label="State" colors={c} onPress={() => {}} />
-        <FilterButton label="District" colors={c} onPress={() => {}} />
-        <FilterButton label="Pincode" colors={c} onPress={() => {}} />
-      </View>
+      <FilterModal
+        visible={filterModalOpen}
+        onClose={() => setFilterModalOpen(false)}
+        initialFilters={filters}
+        onApply={handleApplyFilters}
+        colors={c}
+      />
 
       <Text style={[styles.sectionTitle, { color: c.accent }]}>FEATURED PROFESSIONALS</Text>
 
-      <FlatList
-        data={MOCK_USERS}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <UserCard item={item} colors={c} onViewProfile={(user) => navigation?.navigate('User Details', { user })} />
-        )}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {users.loading && userList.length === 0 ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={c.accent} />
+        </View>
+      ) : userList.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <Icon name="groups" size={48} color={c.textSecondary} />
+          <Text style={[styles.emptyText, { color: c.textSecondary }]}>No service providers found</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={userList}
+          keyExtractor={(item) => item._id || item.id}
+          renderItem={({ item }) => (
+            <UserCard item={item} colors={c} onViewProfile={(user) => navigation?.navigate('User Details', { user })} />
+          )}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={users.loading} onRefresh={loadUsers} colors={[c.accent]} />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -241,24 +204,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 20,
-    gap: 10,
-  },
-  filterBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '500',
+  filterBtnActive: {
+    borderWidth: 1,
+    borderColor: 'rgba(248, 194, 77, 0.5)',
   },
   sectionTitle: {
     fontSize: 16,
@@ -271,6 +219,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 100,
     gap: 16,
+  },
+  loadingWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 16,
   },
   card: {
     borderRadius: 16,
@@ -324,9 +288,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
-  },
-  favoriteBtn: {
-    padding: 4,
   },
   locationRow: {
     flexDirection: 'row',

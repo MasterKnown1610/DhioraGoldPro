@@ -1,4 +1,4 @@
-import React, { useContext, useState, useRef } from 'react';
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Dimensions,
   FlatList,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -20,32 +21,28 @@ const HORIZONTAL_PADDING = 16;
 const CAROUSEL_WIDTH = SCREEN_WIDTH - HORIZONTAL_PADDING * 2;
 const CAROUSEL_HEIGHT = 200;
 
-const DEFAULT_SHOP = {
-  id: '0',
-  name: 'Premium Electronics Hub',
-  address: '123 Luxury Avenue, Golden Plaza, Suite 405, Los Angeles, CA 90012',
-  state: 'CALIFORNIA',
-  city: 'LOS ANGELES',
-  phone: '+1 (555) 000-1234',
-  about:
-    'Premium Electronics Hub is your one-stop destination for the latest high-end gadgets and home automation solutions. From state-of-the-art smartphones to immersive home cinema systems, we curate only the best technology for your lifestyle.',
-  images: [
-    'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800',
-    'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
-    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
-  ],
-};
+const PLACEHOLDER_IMAGES = ['https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800'];
 
 const ShopDetailsScreen = ({ route, navigation }) => {
-  const { theme } = useContext(Context);
+  const { theme, shops } = useContext(Context);
   const c = theme.colors;
   const passedShop = route?.params?.shop || {};
-  const shop = { ...DEFAULT_SHOP, ...passedShop };
-  const images = shop.images?.length
+  const shopId = route?.params?.shopId;
+  const needsFetch = !!shopId && !passedShop?.shopName;
+  const [loading, setLoading] = useState(needsFetch);
+
+  const shop = passedShop?.shopName ? passedShop : (shops.singleShop || passedShop);
+  const images = shop?.images?.length
     ? shop.images
-    : shop.image
+    : shop?.image
       ? [shop.image]
-      : DEFAULT_SHOP.images;
+      : PLACEHOLDER_IMAGES;
+
+  useEffect(() => {
+    if (needsFetch && shopId) {
+      shops.getShopById(shopId).finally(() => setLoading(false));
+    }
+  }, [shopId, needsFetch]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef(null);
@@ -55,15 +52,32 @@ const ShopDetailsScreen = ({ route, navigation }) => {
     setActiveIndex(Math.min(index, images.length - 1));
   };
 
+  const phone = shop?.phoneNumber || shop?.phone;
+  const whatsapp = shop?.whatsappNumber || phone;
+
   const handleCall = () => {
-    const num = shop.phone?.replace(/\D/g, '') || '';
+    const num = (phone || '').replace(/\D/g, '');
     if (num) Linking.openURL(`tel:${num}`);
   };
 
   const handleWhatsApp = () => {
-    const num = shop.phone?.replace(/\D/g, '') || '15550001234';
-    Linking.openURL(`https://wa.me/${num}`);
+    const num = (whatsapp || phone || '').replace(/\D/g, '');
+    if (num) Linking.openURL(`https://wa.me/${num}`);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={c.accent} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const displayName = shop?.shopName || shop?.name;
+  const displayAddress = shop?.address;
+  const about = shop?.about || `${displayName} - Gold & jewelry shop. Visit us at ${displayAddress || ''}`;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
@@ -118,36 +132,40 @@ const ShopDetailsScreen = ({ route, navigation }) => {
         </View>
 
         <View style={styles.tagsRow}>
-          {shop.state && (
+          {shop?.state && (
             <View style={[styles.tag, { backgroundColor: c.accent }]}>
               <Text style={[styles.tagText, { color: c.accentText }]}>{shop.state}</Text>
             </View>
           )}
-          {shop.city && (
+          {shop?.district && (
             <View style={[styles.tag, { backgroundColor: c.accent }]}>
-              <Text style={[styles.tagText, { color: c.accentText }]}>{shop.city}</Text>
+              <Text style={[styles.tagText, { color: c.accentText }]}>{shop.district}</Text>
             </View>
           )}
         </View>
 
-        <Text style={[styles.shopName, { color: c.text }]}>{shop.name}</Text>
-        <View style={styles.addressRow}>
-          <Icon name="location-on" size={18} color={c.accent} style={styles.pinIcon} />
-          <Text style={[styles.address, { color: c.text }]}>{shop.address}</Text>
-        </View>
-
-        <View style={[styles.contactCard, { backgroundColor: c.surface }]}>
-          <View style={[styles.phoneIconCircle, { backgroundColor: c.accent }]}>
-            <Icon name="phone" size={32} color={c.accentText} />
+        <Text style={[styles.shopName, { color: c.text }]}>{displayName}</Text>
+        {displayAddress ? (
+          <View style={styles.addressRow}>
+            <Icon name="location-on" size={18} color={c.accent} style={styles.pinIcon} />
+            <Text style={[styles.address, { color: c.text }]}>{displayAddress}</Text>
           </View>
-          <Text style={[styles.phoneNumber, { color: c.text }]}>{shop.phone}</Text>
-          <Text style={[styles.phoneDesc, { color: c.textSecondary }]}>
-            Official contact number for {shop.name}. Available for calls and inquiries.
-          </Text>
-        </View>
+        ) : null}
+
+        {(phone || whatsapp) ? (
+          <View style={[styles.contactCard, { backgroundColor: c.surface }]}>
+            <View style={[styles.phoneIconCircle, { backgroundColor: c.accent }]}>
+              <Icon name="phone" size={32} color={c.accentText} />
+            </View>
+            <Text style={[styles.phoneNumber, { color: c.text }]}>{phone || whatsapp}</Text>
+            <Text style={[styles.phoneDesc, { color: c.textSecondary }]}>
+              Official contact for {displayName}. Available for calls and inquiries.
+            </Text>
+          </View>
+        ) : null}
 
         <Text style={[styles.aboutTitle, { color: c.accent }]}>ABOUT THE SHOP</Text>
-        <Text style={[styles.aboutText, { color: c.text }]}>{shop.about}</Text>
+        <Text style={[styles.aboutText, { color: c.text }]}>{about}</Text>
 
         <View style={styles.actionsRow}>
           <TouchableOpacity
@@ -319,6 +337,11 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  loadingWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

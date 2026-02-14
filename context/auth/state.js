@@ -1,4 +1,4 @@
-import { useReducer } from 'react';
+import { useReducer, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URLS } from '../../service/config';
 import Reducer from './reducer';
@@ -43,10 +43,11 @@ export const AuthState = () => {
       if (!res.ok) throw new Error(data.message || 'Registration failed');
       const token = data?.data?.token;
       const user = data?.data?.user;
+      const userData = { ...user, userProfile: null, shopProfile: null };
       if (token) await AsyncStorage.setItem(TOKEN_KEY, token);
-      if (user) await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+      if (user) await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
       dispatch({ type: AuthActions.SET_TOKEN, payload: token });
-      dispatch({ type: AuthActions.SET_USER, payload: user });
+      dispatch({ type: AuthActions.SET_USER, payload: userData });
       return data;
     } catch (e) {
       dispatch({ type: AuthActions.SET_ERROR, payload: e.message });
@@ -69,10 +70,15 @@ export const AuthState = () => {
       if (!res.ok) throw new Error(data.message || 'Login failed');
       const token = data?.data?.token;
       const user = data?.data?.user;
+      const userData = {
+        ...user,
+        userProfile: data?.data?.userProfile,
+        shopProfile: data?.data?.shopProfile,
+      };
       if (token) await AsyncStorage.setItem(TOKEN_KEY, token);
-      if (user) await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+      if (user) await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
       dispatch({ type: AuthActions.SET_TOKEN, payload: token });
-      dispatch({ type: AuthActions.SET_USER, payload: user });
+      dispatch({ type: AuthActions.SET_USER, payload: userData });
       return data;
     } catch (e) {
       dispatch({ type: AuthActions.SET_ERROR, payload: e.message });
@@ -97,6 +103,10 @@ export const AuthState = () => {
       if (userStr) dispatch({ type: AuthActions.SET_USER, payload: JSON.parse(userStr) });
     } catch (_) {}
   };
+
+  useEffect(() => {
+    restoreSession();
+  }, []);
 
   const forgotPassword = async (payload) => {
     dispatch({ type: AuthActions.SET_LOADING, payload: true });
@@ -138,6 +148,142 @@ export const AuthState = () => {
     }
   };
 
+  const getMe = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(API_URLS.Me, { headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to fetch profile');
+      const userData = {
+        ...data?.data?.user,
+        userProfile: data?.data?.userProfile,
+        shopProfile: data?.data?.shopProfile,
+      };
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      dispatch({ type: AuthActions.SET_USER, payload: userData });
+      return data;
+    } catch (e) {
+      dispatch({ type: AuthActions.SET_ERROR, payload: e.message });
+      throw e;
+    }
+  };
+
+  const registerServiceProvider = async (formData) => {
+    dispatch({ type: AuthActions.SET_LOADING, payload: true });
+    dispatch({ type: AuthActions.SET_ERROR, payload: null });
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const headers = token ? { Authorization: `Bearer ${token}`, Accept: 'application/json' } : { Accept: 'application/json' };
+      const res = await fetch(API_URLS.RegisterServiceProvider, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Registration failed');
+      const userData = {
+        ...data?.data?.user,
+        userProfile: data?.data?.userProfile,
+        shopProfile: data?.data?.shopProfile,
+      };
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      dispatch({ type: AuthActions.SET_USER, payload: userData });
+      return data;
+    } catch (e) {
+      dispatch({ type: AuthActions.SET_ERROR, payload: e.message });
+      throw e;
+    } finally {
+      dispatch({ type: AuthActions.SET_LOADING, payload: false });
+    }
+  };
+
+  const updateServiceProvider = async (formData) => {
+    dispatch({ type: AuthActions.SET_LOADING, payload: true });
+    dispatch({ type: AuthActions.SET_ERROR, payload: null });
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const headers = token ? { Authorization: `Bearer ${token}`, Accept: 'application/json' } : { Accept: 'application/json' };
+      const res = await fetch(API_URLS.UpdateServiceProvider, {
+        method: 'PATCH',
+        headers,
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Update failed');
+      const userData = {
+        ...data?.data?.user,
+        userProfile: data?.data?.userProfile,
+        shopProfile: data?.data?.shopProfile,
+      };
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      dispatch({ type: AuthActions.SET_USER, payload: userData });
+      return data;
+    } catch (e) {
+      dispatch({ type: AuthActions.SET_ERROR, payload: e.message });
+      throw e;
+    } finally {
+      dispatch({ type: AuthActions.SET_LOADING, payload: false });
+    }
+  };
+
+  const updateShop = async (formData) => {
+    dispatch({ type: AuthActions.SET_LOADING, payload: true });
+    dispatch({ type: AuthActions.SET_ERROR, payload: null });
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const headers = token ? { Authorization: `Bearer ${token}`, Accept: 'application/json' } : { Accept: 'application/json' };
+      const res = await fetch(API_URLS.UpdateShop, {
+        method: 'PATCH',
+        headers,
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Update failed');
+      const userData = {
+        ...data?.data?.user,
+        userProfile: data?.data?.userProfile,
+        shopProfile: data?.data?.shopProfile,
+      };
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      dispatch({ type: AuthActions.SET_USER, payload: userData });
+      return data;
+    } catch (e) {
+      dispatch({ type: AuthActions.SET_ERROR, payload: e.message });
+      throw e;
+    } finally {
+      dispatch({ type: AuthActions.SET_LOADING, payload: false });
+    }
+  };
+
+  const registerShop = async (formData) => {
+    dispatch({ type: AuthActions.SET_LOADING, payload: true });
+    dispatch({ type: AuthActions.SET_ERROR, payload: null });
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const headers = token ? { Authorization: `Bearer ${token}`, Accept: 'application/json' } : { Accept: 'application/json' };
+      const res = await fetch(API_URLS.RegisterShop, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Registration failed');
+      const userData = {
+        ...data?.data?.user,
+        userProfile: data?.data?.userProfile,
+        shopProfile: data?.data?.shopProfile,
+      };
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      dispatch({ type: AuthActions.SET_USER, payload: userData });
+      return data;
+    } catch (e) {
+      dispatch({ type: AuthActions.SET_ERROR, payload: e.message });
+      throw e;
+    } finally {
+      dispatch({ type: AuthActions.SET_LOADING, payload: false });
+    }
+  };
+
   const changePassword = async (payload) => {
     dispatch({ type: AuthActions.SET_LOADING, payload: true });
     dispatch({ type: AuthActions.SET_ERROR, payload: null });
@@ -162,6 +308,11 @@ export const AuthState = () => {
   return {
     ...state,
     register,
+    registerServiceProvider,
+    updateServiceProvider,
+    registerShop,
+    updateShop,
+    getMe,
     login,
     logout,
     restoreSession,

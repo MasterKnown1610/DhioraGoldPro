@@ -15,6 +15,10 @@ import UsersScreen from './screens/UsersScreen';
 import UserDetailsScreen from './screens/UserDetailsScreen';
 import HelpScreen from './screens/HelpScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
+import EditServiceProviderScreen from './screens/EditServiceProviderScreen';
+import EditShopScreen from './screens/EditShopScreen';
 import LogoImage from '../assets/Picture.png';
 
 import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
@@ -160,13 +164,33 @@ function ProfileStack() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ headerTitle: () => <HeaderLogo />, headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
+      />
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{ headerTitle: () => <HeaderLogo />, headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
+      />
+      <Stack.Screen
         name="Register Shop"
         component={ShopRegistration}
         options={{ headerTitle: () => <HeaderLogo />, headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
       />
       <Stack.Screen
-        name="Register User"
+        name="Register Service Provider"
         component={UserRegistration}
+        options={{ headerTitle: () => <HeaderLogo />, headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
+      />
+      <Stack.Screen
+        name="Edit Service Provider"
+        component={EditServiceProviderScreen}
+        options={{ headerTitle: () => <HeaderLogo />, headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
+      />
+      <Stack.Screen
+        name="Edit Shop"
+        component={EditShopScreen}
         options={{ headerTitle: () => <HeaderLogo />, headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
       />
     </Stack.Navigator>

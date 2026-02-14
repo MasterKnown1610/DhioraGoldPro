@@ -5,6 +5,11 @@ export const API_URLS = {
   // Auth
   Register: `${BASE_URL}/api/auth/register`,
   Login: `${BASE_URL}/api/auth/login`,
+  Me: `${BASE_URL}/api/auth/me`,
+  RegisterServiceProvider: `${BASE_URL}/api/auth/register-service-provider`,
+  UpdateServiceProvider: `${BASE_URL}/api/auth/service-provider`,
+  RegisterShop: `${BASE_URL}/api/auth/register-shop`,
+  UpdateShop: `${BASE_URL}/api/auth/shop`,
   ForgotPassword: `${BASE_URL}/api/auth/forgot-password`,
   ResetPassword: `${BASE_URL}/api/auth/reset-password`,
   ChangePassword: `${BASE_URL}/api/auth/change-password`,
@@ -19,6 +24,9 @@ export const API_URLS = {
 
   // Help / Complaints
   Help: `${BASE_URL}/api/help`,
+
+  // Promotions (returns only active: endDate >= today)
+  Promotions: `${BASE_URL}/api/promotions`,
 
   // Health
   Health: `${BASE_URL}/health`,

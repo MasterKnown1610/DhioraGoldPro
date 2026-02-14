@@ -1,115 +1,37 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   Image,
   FlatList,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Context from '../../context/Context';
+import FilterModal from '../FilterModal';
 
-const MOCK_SHOPS = [
-  {
-    id: '1',
-    name: "Maison d'Or Luxury",
-    address: '7th Avenue, Diamond District, New York, NY 10036',
-    state: 'NEW YORK',
-    city: 'MANHATTAN',
-    status: 'closed',
-    opensAt: '10:00 AM',
-    closesAt: null,
-    rating: 4.9,
-    premium: true,
-    phone: '+1 (212) 555-0147',
-    about:
-      "Maison d'Or Luxury offers an exquisite collection of fine gold jewelry and bespoke pieces. Our master craftsmen bring decades of tradition to every design, ensuring timeless elegance for discerning clients.",
-    image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=600',
-    images: [
-      'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800',
-      'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800',
-    ],
-  },
-  {
-    id: '2',
-    name: 'Vogue Couture',
-    address: 'Regent Street, North Square, London W1B 5RA',
-    state: 'ENGLAND',
-    city: 'LONDON',
-    status: 'open',
-    opensAt: null,
-    closesAt: '9:00 PM',
-    rating: 4.7,
-    premium: false,
-    phone: '+44 20 7946 0958',
-    about:
-      'Vogue Couture blends contemporary design with classic elegance. Discover our curated selection of luxury fashion and accessories, handpicked for the modern sophisticate.',
-    image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600',
-    images: [
-      'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800',
-      'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800',
-    ],
-  },
-  {
-    id: '3',
-    name: 'Premium Electronics Hub',
-    address: '123 Luxury Avenue, Golden Plaza, Suite 405, Los Angeles, CA 90012',
-    state: 'CALIFORNIA',
-    city: 'LOS ANGELES',
-    status: 'open',
-    opensAt: null,
-    closesAt: '7:00 PM',
-    rating: 4.8,
-    premium: true,
-    phone: '+1 (555) 000-1234',
-    about:
-      'Premium Electronics Hub is your one-stop destination for the latest high-end gadgets and home automation solutions. From state-of-the-art smartphones to immersive home cinema systems, we curate only the best technology for your lifestyle.',
-    image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=600',
-    images: [
-      'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800',
-      'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
-      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
-    ],
-  },
-];
+const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=600';
 
-const ShopCard = ({ item, colors, onViewDetails, onFavorite }) => {
+const ShopCard = ({ item, colors, onViewDetails }) => {
   const c = colors;
-  const [isFavorite, setIsFavorite] = useState(false);
-  const statusText = item.status === 'open'
-    ? `Open • Closes ${item.closesAt}`
-    : `Closed now • Opens ${item.opensAt}`;
+  const image = item.images?.[0] || item.image || PLACEHOLDER_IMAGE;
 
   return (
     <View style={[styles.card, { backgroundColor: c.surface }]}>
       <View style={styles.imageWrapper}>
-        <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
-        {item.premium && (
-          <View style={styles.premiumTag}>
-            <Text style={styles.premiumText}>PREMIUM</Text>
-          </View>
-        )}
-        <TouchableOpacity
-          style={[styles.favoriteBtn, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
-          onPress={() => setIsFavorite(!isFavorite)}
-          activeOpacity={0.8}
-        >
-          <Icon name={isFavorite ? 'favorite' : 'favorite-border'} size={22} color="#fff" />
-        </TouchableOpacity>
+        <Image source={{ uri: image }} style={styles.cardImage} resizeMode="cover" />
       </View>
       <View style={styles.cardDetails}>
         <View style={styles.cardHeader}>
           <Text style={[styles.shopName, { color: c.text }]} numberOfLines={1}>
-            {item.name}
+            {item.shopName || item.name}
           </Text>
-          <View style={[styles.ratingBadge, { backgroundColor: c.surfaceSecondary || c.background }]}>
-            <Icon name="star" size={14} color={c.accent} />
-            <Text style={[styles.ratingText, { color: c.text }]}>{item.rating}</Text>
-          </View>
         </View>
         <View style={styles.locationRow}>
           <Icon name="location-on" size={14} color={c.textSecondary} style={styles.pinIcon} />
@@ -117,16 +39,11 @@ const ShopCard = ({ item, colors, onViewDetails, onFavorite }) => {
             {item.address}
           </Text>
         </View>
-        <Text style={styles.statusRow}>
-          {item.status === 'open' ? (
-            <Text style={styles.statusOpen}>Open</Text>
-          ) : (
-            <Text style={[styles.statusClosed, { color: c.textSecondary }]}>Closed now</Text>
-          )}
-          <Text style={[styles.statusTime, { color: c.textSecondary }]}>
-            {item.status === 'open' ? ` • Closes ${item.closesAt}` : ` • Opens ${item.opensAt}`}
+        {(item.state || item.district) && (
+          <Text style={[styles.locationMeta, { color: c.textSecondary }]}>
+            {[item.district, item.state].filter(Boolean).join(', ')}
           </Text>
-        </Text>
+        )}
         <TouchableOpacity
           style={[styles.viewDetailsBtn, { backgroundColor: c.accent }]}
           onPress={() => onViewDetails?.(item)}
@@ -139,21 +56,59 @@ const ShopCard = ({ item, colors, onViewDetails, onFavorite }) => {
   );
 };
 
-const FilterButton = ({ label, onPress, colors }) => (
-  <TouchableOpacity
-    style={[styles.filterBtn, { backgroundColor: colors.surface }]}
-    onPress={onPress}
-    activeOpacity={0.8}
-  >
-    <Text style={[styles.filterLabel, { color: colors.text }]}>{label}</Text>
-    <Icon name="keyboard-arrow-down" size={20} color={colors.textSecondary} />
-  </TouchableOpacity>
-);
-
-const ShopsScreen = ({ navigation }) => {
-  const { theme } = useContext(Context);
+const ShopsScreen = ({ navigation, route }) => {
+  const { theme, shops } = useContext(Context);
   const c = theme.colors;
   const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({ state: '', district: '', pincode: '' });
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const searchInputRef = useRef(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (route.params?.focusSearch) {
+        const t = setTimeout(() => {
+          searchInputRef.current?.focus();
+          navigation.setParams({ focusSearch: undefined });
+        }, 100);
+        return () => clearTimeout(t);
+      }
+    }, [route.params?.focusSearch, navigation])
+  );
+
+  const buildParams = useCallback((q, f) => {
+    const params = {};
+    if (q.trim()) params.search = q.trim();
+    if (f?.state) params.state = f.state;
+    if (f?.district) params.district = f.district;
+    if (f?.pincode) params.pincode = f.pincode;
+    return params;
+  }, []);
+
+  const loadShops = useCallback(
+    async (filterOverride) => {
+      const f = filterOverride !== undefined ? filterOverride : filters;
+      const params = buildParams(searchQuery, f);
+      await shops.getShops(params);
+    },
+    [searchQuery, filters, buildParams, shops]
+  );
+
+  useEffect(() => {
+    const t = setTimeout(() => loadShops(), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const handleApplyFilters = useCallback(
+    (newFilters) => {
+      setFilters(newFilters);
+      loadShops(newFilters);
+    },
+    [loadShops]
+  );
+
+  const hasActiveFilters = !!(filters.state || filters.district || filters.pincode);
+  const shopList = shops.shops || [];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
@@ -161,6 +116,7 @@ const ShopsScreen = ({ navigation }) => {
         <View style={[styles.searchBar, { backgroundColor: c.surface }]}>
           <Icon name="search" size={22} color={c.textSecondary} style={styles.searchIcon} />
           <TextInput
+            ref={searchInputRef}
             style={[styles.searchInput, { color: c.text }]}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -170,35 +126,51 @@ const ShopsScreen = ({ navigation }) => {
           />
         </View>
         <TouchableOpacity
-          style={[styles.filterIconBtn, { backgroundColor: c.surface }]}
+          style={[styles.filterIconBtn, { backgroundColor: c.surface }, hasActiveFilters && styles.filterBtnActive]}
+          onPress={() => setFilterModalOpen(true)}
           activeOpacity={0.8}
         >
-          <Icon name="filter-list" size={24} color={c.text} />
+          <Icon name="filter-list" size={24} color={hasActiveFilters ? c.accent : c.text} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.filterRow}>
-        <FilterButton label="State" colors={c} onPress={() => {}} />
-        <FilterButton label="District" colors={c} onPress={() => {}} />
-        <FilterButton label="Pincode" colors={c} onPress={() => {}} />
-      </View>
+      <FilterModal
+        visible={filterModalOpen}
+        onClose={() => setFilterModalOpen(false)}
+        initialFilters={filters}
+        onApply={handleApplyFilters}
+        colors={c}
+      />
 
       <Text style={[styles.sectionTitle, { color: c.accent }]}>EXCLUSIVE COLLECTIONS</Text>
 
-      <FlatList
-        data={MOCK_SHOPS}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ShopCard
-            item={item}
-            colors={c}
-            onViewDetails={(shop) => navigation?.navigate('Shop Details', { shop })}
-            onFavorite={() => {}}
-          />
-        )}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {shops.loading && shopList.length === 0 ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={c.accent} />
+        </View>
+      ) : shopList.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <Icon name="storefront" size={48} color={c.textSecondary} />
+          <Text style={[styles.emptyText, { color: c.textSecondary }]}>No shops found</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={shopList}
+          keyExtractor={(item) => item._id || item.id}
+          renderItem={({ item }) => (
+            <ShopCard
+              item={item}
+              colors={c}
+              onViewDetails={(shop) => navigation?.navigate('Shop Details', { shop })}
+            />
+          )}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={shops.loading} onRefresh={loadShops} colors={[c.accent]} />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -237,24 +209,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 20,
-    gap: 10,
-  },
-  filterBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '500',
+  filterBtnActive: {
+    borderWidth: 1,
+    borderColor: 'rgba(248, 194, 77, 0.5)',
   },
   sectionTitle: {
     fontSize: 16,
@@ -267,6 +224,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 100,
     gap: 16,
+  },
+  loadingWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 16,
   },
   card: {
     borderRadius: 16,
@@ -295,16 +268,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#1A1A1A',
-  },
-  favoriteBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   cardDetails: {
     padding: 16,
@@ -345,16 +308,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
   },
-  statusRow: {
-    fontSize: 13,
+  locationMeta: {
+    fontSize: 12,
     marginBottom: 12,
   },
-  statusOpen: {
-    color: '#22C55E',
-    fontWeight: '600',
-  },
-  statusClosed: {},
-  statusTime: {},
   viewDetailsBtn: {
     alignSelf: 'flex-end',
     paddingHorizontal: 20,

@@ -13,11 +13,11 @@ import {
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import Context from '../context/Context';
-import CustomButton from './CustomButton';
-import LocationPicker from './LocationPicker';
+import Context from '../../context/Context';
+import CustomButton from '../CustomButton';
+import LocationPicker from '../LocationPicker';
 
-const UserRegistration = ({ navigation }) => {
+const EditServiceProviderScreen = ({ navigation }) => {
   const { auth, theme } = useContext(Context);
   const c = theme.colors;
   const [loading, setLoading] = useState(false);
@@ -33,28 +33,34 @@ const UserRegistration = ({ navigation }) => {
     city: '',
   });
 
+  const profile = auth.user?.userProfile;
+
   useEffect(() => {
-    if (auth.user?.phoneNumber && !form.phoneNumber) {
-      setForm((p) => ({ ...p, phoneNumber: auth.user.phoneNumber }));
+    if (profile) {
+      setForm({
+        userName: profile.userName || '',
+        serviceProvided: profile.serviceProvided || '',
+        phoneNumber: profile.phoneNumber || auth.user?.phoneNumber || '',
+        address: profile.address || '',
+        pincode: profile.pincode || '',
+        state: profile.state || '',
+        district: profile.district || '',
+        city: profile.city || '',
+      });
     }
-  }, [auth.user?.phoneNumber]);
+  }, [profile, auth.user?.phoneNumber]);
 
   const updateForm = (name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async () => {
-    if (!auth.token) {
-      Alert.alert('Login Required', 'Please login first to register as service provider.');
-      navigation.navigate('Login');
+    if (!auth.token || !profile) {
+      Alert.alert('Error', 'Profile not found');
       return;
     }
+
     const required = ['userName', 'serviceProvided', 'pincode', 'state', 'district', 'city'];
-    const effectivePhone = form.phoneNumber?.trim() || auth.user?.phoneNumber;
-    if (!effectivePhone) {
-      Alert.alert('Phone Required', 'Please enter a phone number or log in with a phone number.');
-      return;
-    }
     const missing = required.filter((f) => !form[f]?.trim());
     if (missing.length) {
       Alert.alert('Error', `Please fill: ${missing.join(', ')}`);
@@ -80,14 +86,12 @@ const UserRegistration = ({ navigation }) => {
       formData.append('district', form.district.trim());
       if (form.city?.trim()) formData.append('city', form.city.trim());
 
-      await auth.registerServiceProvider(formData);
-      Alert.alert('Success', 'Service provider profile created. You appear in the Users list.', [
+      await auth.updateServiceProvider(formData);
+      Alert.alert('Success', 'Service provider profile updated.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
-      setForm({ userName: '', serviceProvided: '', phoneNumber: '', address: '', pincode: '', state: '', district: '', city: '' });
-      setProfileImage(null);
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to register');
+      Alert.alert('Error', e.message || 'Failed to update');
     } finally {
       setLoading(false);
     }
@@ -105,26 +109,38 @@ const UserRegistration = ({ navigation }) => {
     });
   };
 
+  const imageUri = profileImage?.uri || profile?.profileImage;
+
+  if (!profile) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
+        <View style={styles.centered}>
+          <Text style={[styles.errorText, { color: c.textSecondary }]}>No service provider profile found.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
       <ScrollView style={[styles.container, { backgroundColor: c.background }]}>
-        <Text style={[styles.sectionTitle, { color: c.text }]}>Register as Service Provider</Text>
+        <Text style={[styles.sectionTitle, { color: c.text }]}>Edit Service Provider</Text>
         <Text style={[styles.fixedInfo, { color: c.textSecondary }]}>
           {phoneOrEmail ? `Your login phone: ${phoneOrEmail}` : 'Enter phone number below'}
         </Text>
 
         <View style={styles.imageSection}>
-          <Text style={[styles.label, { color: c.text }]}>Profile Image (Optional)</Text>
+          <Text style={[styles.label, { color: c.text }]}>Profile Image</Text>
           <TouchableOpacity
             style={[styles.imagePicker, { backgroundColor: c.surface, borderColor: c.border }]}
             onPress={pickImage}
           >
-            {profileImage?.uri ? (
-              <Image source={{ uri: profileImage.uri }} style={styles.imagePreview} />
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.imagePreview} />
             ) : (
               <View style={styles.imagePlaceholder}>
                 <Icon name="add-a-photo" size={40} color={c.textSecondary} />
-                <Text style={[styles.imagePlaceholderText, { color: c.textSecondary }]}>Tap to add photo</Text>
+                <Text style={[styles.imagePlaceholderText, { color: c.textSecondary }]}>Tap to change photo</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -147,7 +163,6 @@ const UserRegistration = ({ navigation }) => {
               value={form[key]}
               onChangeText={(v) => updateForm(key, v)}
               keyboardType={key === 'phoneNumber' ? 'phone-pad' : 'default'}
-              editable={!!auth.token}
             />
           </View>
         ))}
@@ -171,14 +186,13 @@ const UserRegistration = ({ navigation }) => {
             value={form.pincode}
             onChangeText={(v) => updateForm('pincode', v)}
             keyboardType="phone-pad"
-            editable={!!auth.token}
           />
         </View>
 
         {loading ? (
           <ActivityIndicator size="large" color={c.accent} style={styles.loader} />
         ) : (
-          <CustomButton title="Register as Service Provider" onPress={handleSubmit} />
+          <CustomButton title="Save Changes" onPress={handleSubmit} />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -188,6 +202,8 @@ const UserRegistration = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1, padding: 16 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  errorText: { fontSize: 16 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
   fixedInfo: { fontSize: 12, marginBottom: 16 },
   inputContainer: { marginBottom: 12 },
@@ -218,4 +234,4 @@ const styles = StyleSheet.create({
   imagePlaceholderText: { fontSize: 12, marginTop: 4 },
 });
 
-export default UserRegistration;
+export default EditServiceProviderScreen;
