@@ -116,12 +116,12 @@ const PromotionAutoScroller = forwardRef(({ onSlidePress, colors = {} }, ref) =>
         activeOpacity={1}
       >
         <Image source={imageSource} style={styles.image} resizeMode="cover" />
-        <View style={[styles.overlay, { backgroundColor: c.overlay }]}>
-          <Text style={styles.title}>{item.title || 'Promotion'}</Text>
-          <Text style={[styles.subtitle, { color: c.accent }]} numberOfLines={1}>
-            {subtitle}
-          </Text>
-          {hasCta && (
+        {hasCta && (
+          <View style={[styles.overlay, { backgroundColor: c.overlay }]}>
+            <Text style={styles.title}>{item.title || 'Promotion'}</Text>
+            <Text style={[styles.subtitle, { color: c.accent }]} numberOfLines={1}>
+              {subtitle}
+            </Text>
             <TouchableOpacity
               style={[styles.ctaBtn, { backgroundColor: c.accent }]}
               onPress={(e) => {
@@ -138,8 +138,8 @@ const PromotionAutoScroller = forwardRef(({ onSlidePress, colors = {} }, ref) =>
               />
               <Text style={styles.ctaBtnText}>{ctaLabel}</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
