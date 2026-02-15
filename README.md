@@ -86,6 +86,14 @@ You've successfully run and modified your React Native App. :partying_face:
 
 If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
 
+# AdMob Rewarded Ads
+
+This project includes **Google AdMob Rewarded Interstitial** ads via `react-native-google-mobile-ads`. Gold rewards are granted only by the backend (Server-Side Verification); the app does not grant gold on the client.
+
+- **Setup:** Install dependencies (`npm install`), then see [docs/ADMOB_REWARDED_ADS.md](docs/ADMOB_REWARDED_ADS.md) for configuration, test vs production, and Play Store requirements.
+- **App ID:** `ca-app-pub-4292460929510961~7144849340` (in `AndroidManifest.xml`).
+- **Rewarded Ad Unit:** `ca-app-pub-4292460929510961/5576724603` (used in production in `src/ads/rewardedAd.js`).
+
 # Learn More
 
 To learn more about React Native, take a look at the following resources:

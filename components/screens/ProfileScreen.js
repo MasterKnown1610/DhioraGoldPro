@@ -46,6 +46,16 @@ const ProfileScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         {auth.token ? (
+          <TouchableOpacity
+            style={[styles.themeToggle, { backgroundColor: c.surface, borderColor: c.border, marginTop: 12 }]}
+            onPress={() => navigation.navigate('Earn Gold')}
+          >
+            <Icon name="monetization-on" size={24} color={c.accent} style={{ marginRight: 10 }} />
+            <Text style={[styles.themeToggleText, { color: c.text }]}>Earn Gold (watch ad)</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {auth.token ? (
           <View style={styles.registerSection}>
             {/* Linked profiles */}
             {hasUserProfile && (

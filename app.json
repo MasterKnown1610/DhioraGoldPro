@@ -1,4 +1,7 @@
 {
   "name": "GoldAppLive",
-  "displayName": "GoldAppLive"
+  "displayName": "Dhiora GoldPro",
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-4292460929510961~7144849340"
+  }
 }

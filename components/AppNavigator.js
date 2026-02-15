@@ -19,6 +19,7 @@ import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import EditServiceProviderScreen from './screens/EditServiceProviderScreen';
 import EditShopScreen from './screens/EditShopScreen';
+import RewardScreen from '../src/screens/RewardScreen';
 import LogoImage from '../assets/Picture.png';
 
 import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
@@ -192,6 +193,11 @@ function ProfileStack() {
         name="Edit Shop"
         component={EditShopScreen}
         options={{ headerTitle: () => <HeaderLogo />, headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
+      />
+      <Stack.Screen
+        name="Earn Gold"
+        component={RewardScreen}
+        options={{ headerTitle: 'Earn Gold', headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
       />
     </Stack.Navigator>
   );

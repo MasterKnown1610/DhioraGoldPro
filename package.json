@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
+    "android:jdk17": "JAVA_HOME=$(/usr/libexec/java_home -v 17) react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
@@ -20,7 +21,8 @@
     "react-native-image-picker": "^8.2.1",
     "react-native-safe-area-context": "^5.6.2",
     "react-native-screens": "^4.20.0",
-    "react-native-vector-icons": "^10.3.0"
+    "react-native-vector-icons": "^10.3.0",
+    "react-native-google-mobile-ads": "^15.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

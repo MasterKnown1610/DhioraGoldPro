@@ -178,6 +178,7 @@ const ShopsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 16,
   },
   searchRow: {
     flexDirection: 'row',
