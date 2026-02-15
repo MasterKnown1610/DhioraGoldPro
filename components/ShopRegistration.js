@@ -10,6 +10,8 @@ import {
   SafeAreaView,
   Image,
   TouchableOpacity,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -18,6 +20,16 @@ import CustomButton from './CustomButton';
 import LocationPicker from './LocationPicker';
 
 const MAX_IMAGES = 5;
+
+const TIME_OPTIONS = (() => {
+  const options = [''];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      options.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  return options;
+})();
 
 const DAYS = [
   { key: 'monday', label: 'Monday' },
@@ -47,6 +59,7 @@ const ShopRegistration = ({ navigation }) => {
   });
   const [shopImages, setShopImages] = useState([]);
   const [openingHours, setOpeningHours] = useState(initialOpeningHours());
+  const [timePicker, setTimePicker] = useState(null);
 
   const updateForm = (name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -246,27 +259,64 @@ const ShopRegistration = ({ navigation }) => {
       </View>
 
       <Text style={[styles.sectionTitle, styles.marginTop, { color: c.text }]}>Opening Hours (Optional)</Text>
-      <Text style={styles.hint}>Use 24h format, e.g. 09:00, 18:00. Leave empty for closed days.</Text>
+      <Text style={styles.hint}>Tap Open/Close to pick time. Leave empty for closed days.</Text>
       {DAYS.map(({ key, label }) => (
         <View key={key} style={styles.dayRow}>
-          <Text style={styles.dayLabel}>{label}</Text>
-          <TextInput
-            style={[styles.timeInput, styles.openInput]}
-            placeholder="Open"
-            value={openingHours[key]?.open || ''}
-            onChangeText={(v) => updateOpeningHours(key, 'open', v)}
-            placeholderTextColor="#999"
-          />
-          <Text style={styles.toText}>to</Text>
-          <TextInput
-            style={[styles.timeInput, styles.closeInput]}
-            placeholder="Close"
-            value={openingHours[key]?.close || ''}
-            onChangeText={(v) => updateOpeningHours(key, 'close', v)}
-            placeholderTextColor="#999"
-          />
+          <Text style={[styles.dayLabel, { color: c.text }]}>{label}</Text>
+          <TouchableOpacity
+            style={[styles.timeInput, { backgroundColor: c.surface || '#f5f5f5', borderColor: c.border || '#ccc' }]}
+            onPress={() => setTimePicker({ day: key, field: 'open' })}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.timeInputText, { color: (openingHours[key]?.open && c.text) || c.textSecondary || '#999' }]}>
+              {openingHours[key]?.open || 'Open'}
+            </Text>
+            <Icon name="schedule" size={18} color={c.textSecondary || '#888'} style={styles.timeInputIcon} />
+          </TouchableOpacity>
+          <Text style={[styles.toText, { color: c.textSecondary || '#666' }]}>to</Text>
+          <TouchableOpacity
+            style={[styles.timeInput, { backgroundColor: c.surface || '#f5f5f5', borderColor: c.border || '#ccc' }]}
+            onPress={() => setTimePicker({ day: key, field: 'close' })}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.timeInputText, { color: (openingHours[key]?.close && c.text) || c.textSecondary || '#999' }]}>
+              {openingHours[key]?.close || 'Close'}
+            </Text>
+            <Icon name="schedule" size={18} color={c.textSecondary || '#888'} style={styles.timeInputIcon} />
+          </TouchableOpacity>
         </View>
       ))}
+
+      <Modal visible={!!timePicker} transparent animationType="slide">
+        <TouchableOpacity style={styles.timePickerOverlay} activeOpacity={1} onPress={() => setTimePicker(null)}>
+          <View style={[styles.timePickerContent, { backgroundColor: c.surface || '#fff' }]} onStartShouldSetResponder={() => true}>
+            <View style={[styles.timePickerHeader, { borderBottomColor: c.border || '#eee' }]}>
+              <Text style={[styles.timePickerTitle, { color: c.text }]}>
+                {timePicker ? `${timePicker.field === 'open' ? 'Open' : 'Close'} time` : ''}
+              </Text>
+              <TouchableOpacity onPress={() => setTimePicker(null)} hitSlop={12}>
+                <Icon name="close" size={24} color={c.textSecondary || '#666'} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={TIME_OPTIONS}
+              keyExtractor={(item) => item || 'closed'}
+              style={styles.timePickerList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.timePickerOption, { borderBottomColor: c.border || '#eee' }]}
+                  onPress={() => {
+                    updateOpeningHours(timePicker.day, timePicker.field, item);
+                    setTimePicker(null);
+                  }}
+                >
+                  <Text style={[styles.timePickerOptionText, { color: c.text }]}>{item || 'Closed'}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {loading ? (
         <ActivityIndicator size="large" color="#F8C24D" style={styles.loader} />
@@ -335,19 +385,17 @@ const styles = StyleSheet.create({
   },
   timeInput: {
     height: 40,
-    borderColor: '#ccc',
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 10,
     fontSize: 14,
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  openInput: {
-    flex: 1,
-  },
-  closeInput: {
-    flex: 1,
-  },
+  timeInputText: { fontSize: 14 },
+  timeInputIcon: { marginLeft: 4 },
   toText: {
     fontSize: 12,
     color: '#666',
@@ -397,6 +445,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
+  timePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  timePickerContent: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '50%',
+    paddingBottom: 24,
+  },
+  timePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  timePickerTitle: { fontSize: 18, fontWeight: 'bold' },
+  timePickerList: { maxHeight: 320 },
+  timePickerOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  timePickerOptionText: { fontSize: 16 },
 });
 
 export default ShopRegistration;

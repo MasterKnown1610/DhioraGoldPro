@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import {
   View,
   Image,
@@ -8,8 +8,41 @@ import {
   TouchableOpacity,
   Text,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { API_URLS } from '../../service/config';
+
+const handleCtaPress = async (item) => {
+  const { ctaType, ctaValue, ctaMessage } = item;
+  if (!ctaType || !ctaValue) return;
+  const value = String(ctaValue).trim();
+  try {
+    if (ctaType === 'phone') {
+      await Linking.openURL(`tel:${value}`);
+    } else if (ctaType === 'whatsapp') {
+      const num = value.replace(/\D/g, '').replace(/^0+/, '');
+      const url = ctaMessage
+        ? `https://wa.me/${num}?text=${encodeURIComponent(String(ctaMessage).trim())}`
+        : `https://wa.me/${num}`;
+      await Linking.openURL(url);
+    } else if (ctaType === 'website') {
+      let url = value;
+      if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+      await Linking.openURL(url);
+    }
+  } catch (err) {
+    Alert.alert('Error', 'Could not open link. Please try again.');
+  }
+};
+
+const getCtaButtonLabel = (ctaType) => {
+  if (ctaType === 'phone') return 'Call Now';
+  if (ctaType === 'whatsapp') return 'WhatsApp';
+  if (ctaType === 'website') return 'Visit Website';
+  return null;
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HORIZONTAL_PADDING = 16;
@@ -18,32 +51,32 @@ const PROMO_HEIGHT = 160;
 const BORDER_RADIUS = 16;
 const AUTO_SCROLL_INTERVAL = 4000;
 
-const PromotionAutoScroller = ({ onSlidePress, colors = {} }) => {
+const PromotionAutoScroller = forwardRef(({ onSlidePress, colors = {} }, ref) => {
   const c = { accent: '#F8C24D', textSecondary: '#555', overlay: 'rgba(0,0,0,0.35)', ...colors };
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef(null);
 
-  useEffect(() => {
-    let mounted = true;
-    fetch(API_URLS.Promotions)
+  const loadPromotions = () => {
+    setLoading(true);
+    return fetch(API_URLS.Promotions)
       .then((res) => res.json())
       .then((data) => {
-        if (!mounted) return;
         if (data?.success && Array.isArray(data.data)) {
           setPromotions(data.data);
         } else {
           setPromotions([]);
         }
       })
-      .catch(() => {
-        if (mounted) setPromotions([]);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-    return () => { mounted = false; };
+      .catch(() => setPromotions([]))
+      .finally(() => setLoading(false));
+  };
+
+  useImperativeHandle(ref, () => ({ refresh: loadPromotions }), []);
+
+  useEffect(() => {
+    loadPromotions();
   }, []);
 
   useEffect(() => {
@@ -73,16 +106,39 @@ const PromotionAutoScroller = ({ onSlidePress, colors = {} }) => {
     const subtitle = item.description?.trim()
       ? (item.description.length > 60 ? item.description.slice(0, 60) + '…' : item.description)
       : 'Tap for details';
+    const hasCta = !!(item.ctaType && item.ctaValue);
+    const ctaLabel = hasCta ? (item.ctaLabel?.trim() || getCtaButtonLabel(item.ctaType)) : null;
+
     return (
       <TouchableOpacity
         style={styles.slide}
-        onPress={() => onSlidePress?.(item)}
+        onPress={() => (hasCta ? handleCtaPress(item) : onSlidePress?.(item))}
         activeOpacity={1}
       >
         <Image source={imageSource} style={styles.image} resizeMode="cover" />
         <View style={[styles.overlay, { backgroundColor: c.overlay }]}>
           <Text style={styles.title}>{item.title || 'Promotion'}</Text>
-          <Text style={[styles.subtitle, { color: c.accent }]}>{subtitle}</Text>
+          <Text style={[styles.subtitle, { color: c.accent }]} numberOfLines={1}>
+            {subtitle}
+          </Text>
+          {hasCta && (
+            <TouchableOpacity
+              style={[styles.ctaBtn, { backgroundColor: c.accent }]}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                handleCtaPress(item);
+              }}
+              activeOpacity={0.85}
+            >
+              <Icon
+                name={item.ctaType === 'phone' ? 'call' : item.ctaType === 'whatsapp' ? 'chat' : 'open-in-new'}
+                size={18}
+                color="#1A1A1A"
+                style={styles.ctaIcon}
+              />
+              <Text style={styles.ctaBtnText}>{ctaLabel}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -128,7 +184,7 @@ const PromotionAutoScroller = ({ onSlidePress, colors = {} }) => {
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -170,6 +226,23 @@ const styles = StyleSheet.create({
     color: '#F8C24D',
     marginTop: 4,
   },
+  ctaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  ctaIcon: {
+    marginRight: 6,
+  },
+  ctaBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
   pagination: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -191,4 +264,5 @@ const styles = StyleSheet.create({
   },
 });
 
+PromotionAutoScroller.displayName = 'PromotionAutoScroller';
 export default PromotionAutoScroller;

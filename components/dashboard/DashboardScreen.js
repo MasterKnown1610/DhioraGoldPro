@@ -1,10 +1,11 @@
-import React, { useState, useContext, useMemo } from 'react';
+import React, { useState, useContext, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   SafeAreaView,
+  RefreshControl,
 } from 'react-native';
 import Context from '../../context/Context';
 import TopBar from './TopBar';
@@ -18,6 +19,8 @@ const DashboardScreen = ({ navigation }) => {
   const { theme, auth } = useContext(Context);
   const [searchQuery, setSearchQuery] = useState('');
   const [browseMode, setBrowseMode] = useState('shops');
+  const [refreshing, setRefreshing] = useState(false);
+  const promotionScrollerRef = useRef(null);
 
   const displayName =
     auth?.token && auth?.user
@@ -35,12 +38,24 @@ const DashboardScreen = ({ navigation }) => {
 
   const styles = useMemo(() => createStyles(theme.colors), [theme.colors]);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await promotionScrollerRef.current?.refresh?.();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.accent]} />
+        }
       >
         <TopBar
           userName={displayName}
@@ -61,7 +76,7 @@ const DashboardScreen = ({ navigation }) => {
             });
           }}
         />
-        <PromotionAutoScroller onSlidePress={(slide) => {}} colors={theme.colors} />
+        <PromotionAutoScroller ref={promotionScrollerRef} onSlidePress={(slide) => {}} colors={theme.colors} />
         <BrowseCards
           selected={browseMode}
           onSelectShops={() => {
