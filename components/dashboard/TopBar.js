@@ -1,17 +1,21 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const defaultColors = { surface: '#2A2A2A', textSecondary: '#888', text: '#fff', accent: '#F8C24D' };
 
-const TopBar = ({ userName = 'Alexander', onNotificationPress, onProfilePress, colors = {} }) => {
+const TopBar = ({ userName = 'User', profileImageUri, onNotificationPress, onProfilePress, colors = {} }) => {
   const c = { ...defaultColors, ...colors };
   return (
   <View style={styles.container}>
     <TouchableOpacity style={styles.profileSection} onPress={onProfilePress} activeOpacity={0.7}>
       <View style={styles.avatarWrapper}>
         <View style={[styles.avatar, { backgroundColor: c.surface }]}>
-          <Icon name="person" size={28} color={c.textSecondary} />
+          {profileImageUri ? (
+            <Image source={{ uri: profileImageUri }} style={styles.avatarImage} resizeMode="cover" />
+          ) : (
+            <Icon name="person" size={28} color={c.textSecondary} />
+          )}
         </View>
         <View style={styles.onlineDot} />
       </View>
@@ -20,9 +24,9 @@ const TopBar = ({ userName = 'Alexander', onNotificationPress, onProfilePress, c
         <Text style={[styles.welcomeText, { color: c.text }]}>Welcome, {userName}</Text>
       </View>
     </TouchableOpacity>
-    <TouchableOpacity style={styles.notificationBtn} onPress={onNotificationPress} activeOpacity={0.7}>
+    {/* <TouchableOpacity style={styles.notificationBtn} onPress={onNotificationPress} activeOpacity={0.7}>
       <Icon name="notifications" size={26} color={c.accent} />
-    </TouchableOpacity>
+    </TouchableOpacity> */}
   </View>
   );
 };
@@ -50,6 +54,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A2A2A',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   onlineDot: {
     position: 'absolute',

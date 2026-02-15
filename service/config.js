@@ -1,5 +1,5 @@
 // Change to your machine IP when testing on device (e.g. 'http://192.168.0.121:5000')
-export const BASE_URL = 'http://localhost:5000';
+export const BASE_URL = 'https://dhiora-gold-backend.vercel.app';
 
 export const API_URLS = {
   // Auth

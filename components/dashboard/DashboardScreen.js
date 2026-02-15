@@ -15,9 +15,23 @@ import CuratedBoutiques from './CuratedBoutiques';
 import CustomButton from '../CustomButton';
 
 const DashboardScreen = ({ navigation }) => {
-  const { theme } = useContext(Context);
+  const { theme, auth } = useContext(Context);
   const [searchQuery, setSearchQuery] = useState('');
   const [browseMode, setBrowseMode] = useState('shops');
+
+  const displayName =
+    auth?.token && auth?.user
+      ? auth.user?.userProfile?.userName ||
+        auth.user?.name ||
+        auth.user?.email ||
+        auth.user?.phoneNumber ||
+        'User'
+      : 'User';
+
+  const profileImageUri =
+    auth?.token && auth?.user
+      ? auth.user?.userProfile?.profileImage || auth.user?.profileImage || null
+      : null;
 
   const styles = useMemo(() => createStyles(theme.colors), [theme.colors]);
 
@@ -29,6 +43,8 @@ const DashboardScreen = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
       >
         <TopBar
+          userName={displayName}
+          profileImageUri={profileImageUri}
           onNotificationPress={() => {}}
           onProfilePress={() => navigation.getParent()?.navigate('Profile')}
           colors={theme.colors}
