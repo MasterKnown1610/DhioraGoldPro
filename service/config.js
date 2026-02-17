@@ -31,6 +31,7 @@ export const API_URLS = {
 
   // Gold (requires auth)
   GoldWallet: `${BASE_URL}/api/gold/wallet`,
+  GoldAdWatched: `${BASE_URL}/api/gold/ad-watched`,
   GoldUnlockPhone: `${BASE_URL}/api/gold/unlock-phone`,
   GoldBoostShop: `${BASE_URL}/api/gold/boost-shop`,
   GoldRemoveAds: `${BASE_URL}/api/gold/remove-ads`,

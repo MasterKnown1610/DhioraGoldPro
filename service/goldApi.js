@@ -28,6 +28,19 @@ export async function getWallet(token, params = {}) {
 }
 
 /**
+ * POST /api/gold/ad-watched - notify backend user completed a rewarded ad; credits 1 gold and returns updated wallet.
+ */
+export async function creditAdWatched(token) {
+  const res = await fetch(API_URLS.GoldAdWatched, {
+    method: 'POST',
+    headers: getHeaders(token),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || 'Ad reward failed');
+  return json;
+}
+
+/**
  * POST /api/gold/unlock-phone - spend 2 gold.
  */
 export async function unlockPhone(token) {

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import Context from '../../context/Context';
 import CustomButton from '../../components/CustomButton';
-import { getWallet } from '../../service/goldApi';
+import { getWallet, creditAdWatched } from '../../service/goldApi';
 import {
   loadRewardedAd,
   showRewardedAd,
@@ -80,16 +80,22 @@ export default function RewardScreen({ navigation }) {
       return;
     }
     showRewardedAd({
-      onEarnedReward: (reward) => {
+      onEarnedReward: async (reward) => {
         console.log('[RewardScreen] Earned reward:', reward?.amount, reward?.type);
+        try {
+          const json = await creditAdWatched(token);
+          if (json?.data) setWallet(json.data); // Update UI immediately with new balance
+        } catch (e) {
+          console.warn('[RewardScreen] Ad credit failed:', e?.message);
+        }
       },
       onClosed: () => {
         setLoaded(false);
         loadAd();
-        loadWallet(); // Refresh balance after SSV may have credited gold
+        loadWallet(); // Refresh balance (in case credit was only in onEarnedReward or SSV)
       },
     });
-  }, [loadAd, loadWallet]);
+  }, [token, loadAd, loadWallet]);
 
   return (
     
