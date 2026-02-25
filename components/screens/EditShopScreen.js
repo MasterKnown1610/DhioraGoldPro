@@ -13,11 +13,13 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Context from '../../context/Context';
 import CustomButton from '../CustomButton';
 import LocationPicker from '../LocationPicker';
+import { createOrder, verifyPayment, openRazorpayCheckout } from '../../service/paymentService';
 
 const MAX_IMAGES = 5;
 
@@ -31,20 +33,13 @@ const TIME_OPTIONS = (() => {
   return options;
 })();
 
-const DAYS = [
-  { key: 'monday', label: 'Monday' },
-  { key: 'tuesday', label: 'Tuesday' },
-  { key: 'wednesday', label: 'Wednesday' },
-  { key: 'thursday', label: 'Thursday' },
-  { key: 'friday', label: 'Friday' },
-  { key: 'saturday', label: 'Saturday' },
-  { key: 'sunday', label: 'Sunday' },
-];
+const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 const initialOpeningHours = () =>
-  DAYS.reduce((acc, { key }) => ({ ...acc, [key]: { open: '', close: '' } }), {});
+  DAY_KEYS.reduce((acc, key) => ({ ...acc, [key]: { open: '', close: '' } }), {});
 
 const EditShopScreen = ({ navigation }) => {
+  const { t } = useTranslation();
   const { auth, theme } = useContext(Context);
   const c = theme.colors;
   const [loading, setLoading] = useState(false);
@@ -76,7 +71,7 @@ const EditShopScreen = ({ navigation }) => {
       });
       const hours = profile.openingHours || {};
       const merged = initialOpeningHours();
-      DAYS.forEach(({ key }) => {
+      DAY_KEYS.forEach((key) => {
         if (hours[key]) {
           merged[key] = {
             open: hours[key].open || '',
@@ -99,16 +94,53 @@ const EditShopScreen = ({ navigation }) => {
     }));
   };
 
+  // subscriptionEndDate null or <= now => show Pay ₹25
+  const hasValidShopSubscription = () => {
+    const end = auth.user?.shopProfile?.subscriptionEndDate;
+    if (end == null) return false;
+    const endDate = new Date(end);
+    if (isNaN(endDate.getTime())) return false;
+    return endDate > new Date();
+  };
+
+  const payShopSubscription = async () => {
+    setLoading(true);
+    try {
+      const orderData = await createOrder('shop_subscription');
+      const paymentData = await openRazorpayCheckout({
+        key_id: orderData.key_id,
+        razorpayOrderId: orderData.razorpayOrderId,
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
+        description: 'Shop listing subscription (₹25)',
+      });
+      await verifyPayment({
+        orderId: orderData.orderId,
+        type: 'shop_subscription',
+        razorpay_order_id: paymentData.razorpay_order_id,
+        razorpay_payment_id: paymentData.razorpay_payment_id,
+        razorpay_signature: paymentData.razorpay_signature,
+      });
+      await auth.getMe();
+      Alert.alert(t('common.success'), t('shop.subscriptionRenewed'));
+    } catch (e) {
+      if (e.message !== 'Payment cancelled') Alert.alert(t('shop.paymentError'), e.message || 'Payment failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!auth.token || !profile) {
-      Alert.alert('Error', 'Shop profile not found');
+      Alert.alert(t('common.error'), t('shop.noShopProfile'));
       return;
     }
 
     const required = ['shopName', 'address', 'pincode', 'state', 'district'];
     const missing = required.filter((f) => !form[f]?.trim());
     if (missing.length) {
-      Alert.alert('Error', `Please fill: ${missing.join(', ')}`);
+      const fieldLabels = missing.map((f) => t(`shop.${f}`));
+      Alert.alert(t('common.error'), t('shop.pleaseFill', { fields: fieldLabels.join(', ') }));
       return;
     }
 
@@ -134,10 +166,10 @@ const EditShopScreen = ({ navigation }) => {
         formData.append('whatsappNumber', form.whatsappNumber.trim());
       }
 
-      const hasHours = DAYS.some(({ key }) => openingHours[key]?.open || openingHours[key]?.close);
+      const hasHours = DAY_KEYS.some((key) => openingHours[key]?.open || openingHours[key]?.close);
       if (hasHours) {
         const hoursObj = {};
-        DAYS.forEach(({ key }) => {
+        DAY_KEYS.forEach((key) => {
           const open = openingHours[key]?.open?.trim() || '';
           const close = openingHours[key]?.close?.trim() || '';
           if (open || close) hoursObj[key] = { open, close };
@@ -146,11 +178,11 @@ const EditShopScreen = ({ navigation }) => {
       }
 
       await auth.updateShop(formData);
-      Alert.alert('Success', 'Shop profile updated.', [
+      Alert.alert(t('common.success'), t('shop.shopProfileUpdated'), [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to update');
+      Alert.alert(t('common.error'), e.message || 'Failed to update');
     } finally {
       setLoading(false);
     }
@@ -161,13 +193,13 @@ const EditShopScreen = ({ navigation }) => {
   const pickShopImages = () => {
     const remaining = MAX_IMAGES - shopImages.length;
     if (remaining <= 0) {
-      Alert.alert('Limit', `Maximum ${MAX_IMAGES} images allowed`);
+      Alert.alert(t('common.error'), t('shop.maxImages', { max: MAX_IMAGES }));
       return;
     }
     launchImageLibrary({ mediaType: 'photo', selectionLimit: remaining, quality: 0.8 }, (res) => {
       if (res.didCancel) return;
       if (res.errorCode) {
-        Alert.alert('Error', res.errorMessage || 'Failed to pick images');
+        Alert.alert(t('common.error'), res.errorMessage || 'Failed to pick images');
         return;
       }
       if (res.assets?.length) {
@@ -184,7 +216,7 @@ const EditShopScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
         <View style={styles.centered}>
-          <Text style={[styles.errorText, { color: c.textSecondary }]}>No shop profile found.</Text>
+          <Text style={[styles.errorText, { color: c.textSecondary }]}>{t('shop.noShopProfile')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -197,14 +229,23 @@ const EditShopScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
       <ScrollView style={[styles.container, { backgroundColor: c.background }]}>
-        <Text style={[styles.sectionTitle, { color: c.text }]}>Edit Shop</Text>
-        <Text style={[styles.fixedInfo, { color: c.textSecondary }]}>
-          Phone: {phoneOrEmail}
-        </Text>
+        <Text style={[styles.sectionTitle, { color: c.text }]}>{t('shop.editTitle')}</Text>
+        <Text style={[styles.fixedInfo, { color: c.textSecondary }]}>{t('shop.phoneLabel', { phone: phoneOrEmail })}</Text>
+
+        {!hasValidShopSubscription() && (
+          <View style={[styles.payBanner, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <Text style={[styles.payBannerText, { color: c.text }]}>{t('shop.subscriptionInactive')}</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 8 }} />
+            ) : (
+              <CustomButton title={t('shop.pay25Enable')} onPress={payShopSubscription} />
+            )}
+          </View>
+        )}
 
         <View style={styles.imageSection}>
-          <Text style={[styles.label, { color: c.text }]}>Shop Images (max {MAX_IMAGES})</Text>
-          <Text style={[styles.hint, { color: c.textSecondary }]}>Add new images to replace existing ones</Text>
+          <Text style={[styles.label, { color: c.text }]}>{t('shop.shopImagesMax', { max: MAX_IMAGES })}</Text>
+          <Text style={[styles.hint, { color: c.textSecondary }]}>{t('shop.addNewImagesHint')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageList}>
             {displayImages.map((img, index) => (
               <View key={index} style={styles.imageItem}>
@@ -228,7 +269,7 @@ const EditShopScreen = ({ navigation }) => {
                 onPress={pickShopImages}
               >
                 <Icon name="add-a-photo" size={32} color={c.textSecondary} />
-                <Text style={[styles.addImageText, { color: c.textSecondary }]}>Add / Replace</Text>
+                <Text style={[styles.addImageText, { color: c.textSecondary }]}>{t('shop.addReplace')}</Text>
               </TouchableOpacity>
             ) : shopImages.length < MAX_IMAGES ? (
               <TouchableOpacity
@@ -236,27 +277,27 @@ const EditShopScreen = ({ navigation }) => {
                 onPress={pickShopImages}
               >
                 <Icon name="add-a-photo" size={32} color={c.textSecondary} />
-                <Text style={[styles.addImageText, { color: c.textSecondary }]}>Add</Text>
+                <Text style={[styles.addImageText, { color: c.textSecondary }]}>{t('shop.add')}</Text>
               </TouchableOpacity>
             ) : null}
           </ScrollView>
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: c.text }]}>Shop Name *</Text>
+          <Text style={[styles.label, { color: c.text }]}>{t('shop.shopName')} *</Text>
           <TextInput
             style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-            placeholder="Enter shop name"
+            placeholder={t('shop.enterShopName')}
             placeholderTextColor={c.textSecondary}
             value={form.shopName}
             onChangeText={(v) => updateForm('shopName', v)}
           />
         </View>
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: c.text }]}>Address *</Text>
+          <Text style={[styles.label, { color: c.text }]}>{t('serviceProvider.address')} *</Text>
           <TextInput
             style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-            placeholder="Enter address"
+            placeholder={t('shop.enterAddress')}
             placeholderTextColor={c.textSecondary}
             value={form.address}
             onChangeText={(v) => updateForm('address', v)}
@@ -271,13 +312,16 @@ const EditShopScreen = ({ navigation }) => {
           onDistrictChange={(v) => updateForm('district', v)}
           onCityChange={(v) => updateForm('city', v)}
           colors={c}
+          stateLabel={t('serviceProvider.state')}
+          districtLabel={t('serviceProvider.district')}
+          cityLabel={t('serviceProvider.city')}
         />
 
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: c.text }]}>Pincode *</Text>
+          <Text style={[styles.label, { color: c.text }]}>{t('serviceProvider.pincode')} *</Text>
           <TextInput
             style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-            placeholder="Enter pincode"
+            placeholder={t('shop.enterPincode')}
             placeholderTextColor={c.textSecondary}
             value={form.pincode}
             onChangeText={(v) => updateForm('pincode', v)}
@@ -285,10 +329,10 @@ const EditShopScreen = ({ navigation }) => {
           />
         </View>
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: c.text }]}>WhatsApp Number (Optional)</Text>
+          <Text style={[styles.label, { color: c.text }]}>{t('shop.whatsappOptional')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-            placeholder="Optional"
+            placeholder={t('shop.optionalPlaceholder')}
             placeholderTextColor={c.textSecondary}
             value={form.whatsappNumber}
             onChangeText={(v) => updateForm('whatsappNumber', v)}
@@ -296,29 +340,29 @@ const EditShopScreen = ({ navigation }) => {
           />
         </View>
 
-        <Text style={[styles.sectionTitle, styles.marginTop, { color: c.text }]}>Opening Hours</Text>
-        <Text style={[styles.hint, { color: c.textSecondary }]}>Tap Open/Close to pick time</Text>
-        {DAYS.map(({ key, label }) => (
+        <Text style={[styles.sectionTitle, styles.marginTop, { color: c.text }]}>{t('shop.openingHoursEdit')}</Text>
+        <Text style={[styles.hint, { color: c.textSecondary }]}>{t('shop.openCloseHint')}</Text>
+        {DAY_KEYS.map((key) => (
           <View key={key} style={styles.dayRow}>
-            <Text style={[styles.dayLabel, { color: c.text }]}>{label}</Text>
+            <Text style={[styles.dayLabel, { color: c.text }]}>{t(`days.${key}`)}</Text>
             <TouchableOpacity
               style={[styles.timeInput, { backgroundColor: c.surface, borderColor: c.border }]}
               onPress={() => setTimePicker({ day: key, field: 'open' })}
               activeOpacity={0.7}
             >
               <Text style={[styles.timeInputText, { color: (openingHours[key]?.open && c.text) || c.textSecondary }]}>
-                {openingHours[key]?.open || 'Open'}
+                {openingHours[key]?.open || t('shop.open')}
               </Text>
               <Icon name="schedule" size={18} color={c.textSecondary} style={styles.timeInputIcon} />
             </TouchableOpacity>
-            <Text style={[styles.toText, { color: c.textSecondary }]}>to</Text>
+            <Text style={[styles.toText, { color: c.textSecondary }]}>{t('shop.to')}</Text>
             <TouchableOpacity
               style={[styles.timeInput, { backgroundColor: c.surface, borderColor: c.border }]}
               onPress={() => setTimePicker({ day: key, field: 'close' })}
               activeOpacity={0.7}
             >
               <Text style={[styles.timeInputText, { color: (openingHours[key]?.close && c.text) || c.textSecondary }]}>
-                {openingHours[key]?.close || 'Close'}
+                {openingHours[key]?.close || t('shop.close')}
               </Text>
               <Icon name="schedule" size={18} color={c.textSecondary} style={styles.timeInputIcon} />
             </TouchableOpacity>
@@ -330,7 +374,7 @@ const EditShopScreen = ({ navigation }) => {
             <View style={[styles.timePickerContent, { backgroundColor: c.surface }]} onStartShouldSetResponder={() => true}>
               <View style={[styles.timePickerHeader, { borderBottomColor: c.border }]}>
                 <Text style={[styles.timePickerTitle, { color: c.text }]}>
-                  {timePicker ? `${timePicker.field === 'open' ? 'Open' : 'Close'} time` : ''}
+                  {timePicker ? (timePicker.field === 'open' ? t('shop.openTime') : t('shop.closeTime')) : ''}
                 </Text>
                 <TouchableOpacity onPress={() => setTimePicker(null)} hitSlop={12}>
                   <Icon name="close" size={24} color={c.textSecondary} />
@@ -359,7 +403,7 @@ const EditShopScreen = ({ navigation }) => {
         {loading ? (
           <ActivityIndicator size="large" color={c.accent} style={styles.loader} />
         ) : (
-          <CustomButton title="Save Changes" onPress={handleSubmit} />
+          <CustomButton title={t('serviceProvider.saveChanges')} onPress={handleSubmit} />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -373,6 +417,8 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 16 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
   fixedInfo: { fontSize: 12, marginBottom: 16 },
+  payBanner: { padding: 12, borderRadius: 8, borderWidth: 1, marginBottom: 16 },
+  payBannerText: { fontSize: 14, marginBottom: 8 },
   hint: { fontSize: 12, marginBottom: 8 },
   marginTop: { marginTop: 24 },
   inputContainer: { marginBottom: 12 },

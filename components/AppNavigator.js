@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import { Image, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Context from '../context/Context';
 import DashboardScreen from './dashboard/DashboardScreen';
 import CalculatorToolsScreen from './CalculatorToolsScreen';
@@ -17,6 +18,8 @@ import HelpScreen from './screens/HelpScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import EditServiceProviderScreen from './screens/EditServiceProviderScreen';
 import EditShopScreen from './screens/EditShopScreen';
 import RewardScreen from '../src/screens/RewardScreen';
@@ -38,6 +41,7 @@ const HeaderLogo = () => (
 );
 
 export default function AppNavigator() {
+  const { t } = useTranslation();
   const { theme } = useContext(Context);
   const c = theme.colors;
 
@@ -56,7 +60,7 @@ export default function AppNavigator() {
           name="Home"
           component={HomeStack}
           options={{
-            tabBarLabel: 'HOME',
+            tabBarLabel: t('tabs.home'),
             tabBarIcon: ({ color, size }) => <Icon name="home" size={size} color={color} />,
           }}
         />
@@ -66,7 +70,7 @@ export default function AppNavigator() {
           options={({ route }) => {
             const routeName = getFocusedRouteNameFromRoute(route) ?? 'ShopsList';
             return {
-              tabBarLabel: 'SHOPS',
+              tabBarLabel: t('tabs.shops'),
               tabBarIcon: ({ color, size }) => <Icon name="storefront" size={size} color={color} />,
               tabBarStyle:
                 routeName === 'Shop Details'
@@ -81,7 +85,7 @@ export default function AppNavigator() {
           options={({ route }) => {
             const routeName = getFocusedRouteNameFromRoute(route) ?? 'UsersList';
             return {
-              tabBarLabel: 'USERS',
+              tabBarLabel: t('tabs.users'),
               tabBarIcon: ({ color, size }) => <Icon name="groups" size={size} color={color} />,
               tabBarStyle:
                 routeName === 'User Details'
@@ -94,7 +98,7 @@ export default function AppNavigator() {
           name="Help"
           component={HelpScreen}
           options={{
-            tabBarLabel: 'HELP',
+            tabBarLabel: t('tabs.help'),
             tabBarIcon: ({ color, size }) => <Icon name="help-outline" size={size} color={color} />,
           }}
         />
@@ -102,7 +106,7 @@ export default function AppNavigator() {
           name="Profile"
           component={ProfileStack}
           options={{
-            tabBarLabel: 'PROFILE',
+            tabBarLabel: t('tabs.profile'),
             tabBarIcon: ({ color, size }) => <Icon name="person" size={size} color={color} />,
           }}
         />
@@ -173,6 +177,16 @@ function ProfileStack() {
         name="Register"
         component={RegisterScreen}
         options={{ headerTitle: () => <HeaderLogo />, headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
+      />
+      <Stack.Screen
+        name="Forgot Password"
+        component={ForgotPasswordScreen}
+        options={{ headerTitle: () => <HeaderLogo />, headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
+      />
+      <Stack.Screen
+        name="Change Password"
+        component={ChangePasswordScreen}
+        options={{ title: 'Password & Security', headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
       />
       <Stack.Screen
         name="Register Shop"

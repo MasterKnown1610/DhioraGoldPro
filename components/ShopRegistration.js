@@ -13,11 +13,13 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Context from '../context/Context';
 import CustomButton from './CustomButton';
 import LocationPicker from './LocationPicker';
+import { createOrder, verifyPayment, openRazorpayCheckout } from '../service/paymentService';
 
 const MAX_IMAGES = 5;
 
@@ -31,20 +33,13 @@ const TIME_OPTIONS = (() => {
   return options;
 })();
 
-const DAYS = [
-  { key: 'monday', label: 'Monday' },
-  { key: 'tuesday', label: 'Tuesday' },
-  { key: 'wednesday', label: 'Wednesday' },
-  { key: 'thursday', label: 'Thursday' },
-  { key: 'friday', label: 'Friday' },
-  { key: 'saturday', label: 'Saturday' },
-  { key: 'sunday', label: 'Sunday' },
-];
+const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 const initialOpeningHours = () =>
-  DAYS.reduce((acc, { key }) => ({ ...acc, [key]: { open: '', close: '' } }), {});
+  DAY_KEYS.reduce((acc, key) => ({ ...acc, [key]: { open: '', close: '' } }), {});
 
 const ShopRegistration = ({ navigation }) => {
+  const { t } = useTranslation();
   const { auth, theme } = useContext(Context);
   const c = theme.colors;
   const [loading, setLoading] = useState(false);
@@ -72,22 +67,71 @@ const ShopRegistration = ({ navigation }) => {
     }));
   };
 
+  // Valid only when subscriptionEndDate is set and after current date (not null, not expired)
+  const hasValidShopSubscription = () => {
+    const end = auth.user?.shopProfile?.subscriptionEndDate;
+    if (end == null) return false;
+    const endDate = new Date(end);
+    if (isNaN(endDate.getTime())) return false;
+    return endDate > new Date();
+  };
+
+  const payShopSubscription = async () => {
+    setLoading(true);
+    try {
+      const orderData = await createOrder('shop_subscription');
+      const paymentData = await openRazorpayCheckout({
+        key_id: orderData.key_id,
+        razorpayOrderId: orderData.razorpayOrderId,
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
+        description: 'Shop listing subscription (₹25)',
+      });
+      await verifyPayment({
+        orderId: orderData.orderId,
+        type: 'shop_subscription',
+        razorpay_order_id: paymentData.razorpay_order_id,
+        razorpay_payment_id: paymentData.razorpay_payment_id,
+        razorpay_signature: paymentData.razorpay_signature,
+      });
+      await auth.getMe();
+      return true;
+    } catch (e) {
+      if (e.message !== 'Payment cancelled') Alert.alert(t('shop.paymentError'), e.message || 'Payment failed');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!auth.token) {
-      Alert.alert('Login Required', 'Please login first to register a shop.');
+      Alert.alert(t('shop.loginRequired'), t('shop.pleaseLoginFirst'));
       navigation.navigate('Login');
       return;
     }
     if (!auth.user?.phoneNumber) {
-      Alert.alert('Phone Required', 'Please log in with a phone number to register a shop.');
+      Alert.alert(t('shop.phoneRequired'), t('shop.pleaseLoginPhone'));
       return;
     }
 
     const required = ['shopName', 'address', 'pincode', 'state', 'district', 'city'];
     const missing = required.filter((f) => !form[f]?.trim());
     if (missing.length) {
-      Alert.alert('Error', `Please fill: ${missing.join(', ')}`);
+      const fieldLabels = missing.map((f) => t(`shop.${f}`));
+      Alert.alert(t('common.error'), t('shop.pleaseFill', { fields: fieldLabels.join(', ') }));
       return;
+    }
+
+    const hasShop = !!auth.user?.shopProfile;
+    const needsPayment = !hasValidShopSubscription();
+    if (needsPayment) {
+      const paid = await payShopSubscription();
+      if (!paid) return;
+      if (hasShop) {
+        Alert.alert(t('common.success'), t('shop.subscriptionRenewed'));
+        return;
+      }
     }
 
     setLoading(true);
@@ -110,10 +154,10 @@ const ShopRegistration = ({ navigation }) => {
         formData.append('whatsappNumber', form.whatsappNumber.trim());
       }
 
-      const hasHours = DAYS.some(({ key }) => openingHours[key]?.open || openingHours[key]?.close);
+      const hasHours = DAY_KEYS.some((key) => openingHours[key]?.open || openingHours[key]?.close);
       if (hasHours) {
         const hoursObj = {};
-        DAYS.forEach(({ key }) => {
+        DAY_KEYS.forEach((key) => {
           const open = openingHours[key]?.open?.trim() || '';
           const close = openingHours[key]?.close?.trim() || '';
           if (open || close) hoursObj[key] = { open, close };
@@ -122,7 +166,7 @@ const ShopRegistration = ({ navigation }) => {
       }
 
       await auth.registerShop(formData);
-      Alert.alert('Success', 'Shop registered successfully.', [
+      Alert.alert(t('common.success'), t('shop.shopRegistered'), [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
       setForm({
@@ -137,7 +181,7 @@ const ShopRegistration = ({ navigation }) => {
       setShopImages([]);
       setOpeningHours(initialOpeningHours());
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to register shop');
+      Alert.alert(t('common.error'), e.message || 'Failed to register shop');
     } finally {
       setLoading(false);
     }
@@ -148,13 +192,13 @@ const ShopRegistration = ({ navigation }) => {
   const pickShopImages = () => {
     const remaining = MAX_IMAGES - shopImages.length;
     if (remaining <= 0) {
-      Alert.alert('Limit', `Maximum ${MAX_IMAGES} images allowed`);
+      Alert.alert(t('common.error'), t('shop.maxImages', { max: MAX_IMAGES }));
       return;
     }
     launchImageLibrary({ mediaType: 'photo', selectionLimit: remaining, quality: 0.8 }, (res) => {
       if (res.didCancel) return;
       if (res.errorCode) {
-        Alert.alert('Error', res.errorMessage || 'Failed to pick images');
+        Alert.alert(t('common.error'), res.errorMessage || 'Failed to pick images');
         return;
       }
       if (res.assets?.length) {
@@ -170,12 +214,25 @@ const ShopRegistration = ({ navigation }) => {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
     <ScrollView style={[styles.container, { backgroundColor: c.background }]}>
-      <Text style={[styles.sectionTitle, { color: c.text }]}>Register as Shop</Text>
+      <Text style={[styles.sectionTitle, { color: c.text }]}>{t('shop.registerTitle')}</Text>
       <Text style={[styles.fixedInfo, { color: c.textSecondary }]}>
-        Phone: {phoneOrEmail || '— (log in with phone to register)'}
+        {t('shop.phoneLabel', { phone: phoneOrEmail || t('shop.logInWithPhone') })}
       </Text>
+      {auth.user?.shopProfile && !hasValidShopSubscription() && (
+        <View style={[styles.payBanner, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.payBannerText, { color: c.text }]}>{t('shop.subscriptionExpired')}</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 8 }} />
+          ) : (
+            <CustomButton title={t('shop.pay25Enable')} onPress={payShopSubscription} />
+          )}
+        </View>
+      )}
+      {!auth.user?.shopProfile && (
+        <Text style={[styles.fixedInfo, { color: c.textSecondary }]}>{t('shop.oneTimeFee25')}</Text>
+      )}
       <View style={styles.imageSection}>
-        <Text style={[styles.label, { color: c.text }]}>Shop Images (Optional, max {MAX_IMAGES})</Text>
+        <Text style={[styles.label, { color: c.text }]}>{t('shop.shopImagesOptional', { max: MAX_IMAGES })}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageList}>
           {shopImages.map((img, index) => (
             <View key={index} style={styles.imageItem}>
@@ -194,17 +251,17 @@ const ShopRegistration = ({ navigation }) => {
               onPress={pickShopImages}
             >
               <Icon name="add-a-photo" size={32} color={c.textSecondary} />
-              <Text style={[styles.addImageText, { color: c.textSecondary }]}>Add</Text>
+              <Text style={[styles.addImageText, { color: c.textSecondary }]}>{t('shop.add')}</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={[styles.label, { color: c.text }]}>Shop Name *</Text>
+        <Text style={[styles.label, { color: c.text }]}>{t('shop.shopName')} *</Text>
         <TextInput
           style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-          placeholder="Enter shop name"
+          placeholder={t('shop.enterShopName')}
           placeholderTextColor={c.textSecondary}
           value={form.shopName}
           onChangeText={(v) => updateForm('shopName', v)}
@@ -212,10 +269,10 @@ const ShopRegistration = ({ navigation }) => {
         />
       </View>
       <View style={styles.inputContainer}>
-        <Text style={[styles.label, { color: c.text }]}>Address *</Text>
+        <Text style={[styles.label, { color: c.text }]}>{t('serviceProvider.address')} *</Text>
         <TextInput
           style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-          placeholder="Enter address"
+          placeholder={t('shop.enterAddress')}
           placeholderTextColor={c.textSecondary}
           value={form.address}
           onChangeText={(v) => updateForm('address', v)}
@@ -231,13 +288,16 @@ const ShopRegistration = ({ navigation }) => {
         onDistrictChange={(v) => updateForm('district', v)}
         onCityChange={(v) => updateForm('city', v)}
         colors={c}
+        stateLabel={t('serviceProvider.state')}
+        districtLabel={t('serviceProvider.district')}
+        cityLabel={t('serviceProvider.city')}
       />
 
       <View style={styles.inputContainer}>
-        <Text style={[styles.label, { color: c.text }]}>Pincode *</Text>
+        <Text style={[styles.label, { color: c.text }]}>{t('serviceProvider.pincode')} *</Text>
         <TextInput
           style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-          placeholder="Enter pincode"
+          placeholder={t('shop.enterPincode')}
           placeholderTextColor={c.textSecondary}
           value={form.pincode}
           onChangeText={(v) => updateForm('pincode', v)}
@@ -246,10 +306,10 @@ const ShopRegistration = ({ navigation }) => {
         />
       </View>
       <View style={styles.inputContainer}>
-        <Text style={[styles.label, { color: c.text }]}>WhatsApp Number (Optional)</Text>
+        <Text style={[styles.label, { color: c.text }]}>{t('shop.whatsappOptional')}</Text>
         <TextInput
           style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-          placeholder="Optional"
+          placeholder={t('shop.optionalPlaceholder')}
           placeholderTextColor={c.textSecondary}
           value={form.whatsappNumber}
           onChangeText={(v) => updateForm('whatsappNumber', v)}
@@ -258,29 +318,29 @@ const ShopRegistration = ({ navigation }) => {
         />
       </View>
 
-      <Text style={[styles.sectionTitle, styles.marginTop, { color: c.text }]}>Opening Hours (Optional)</Text>
-      <Text style={styles.hint}>Tap Open/Close to pick time. Leave empty for closed days.</Text>
-      {DAYS.map(({ key, label }) => (
+      <Text style={[styles.sectionTitle, styles.marginTop, { color: c.text }]}>{t('shop.openingHours')}</Text>
+      <Text style={styles.hint}>{t('shop.openingHoursHint')}</Text>
+      {DAY_KEYS.map((key) => (
         <View key={key} style={styles.dayRow}>
-          <Text style={[styles.dayLabel, { color: c.text }]}>{label}</Text>
+          <Text style={[styles.dayLabel, { color: c.text }]}>{t(`days.${key}`)}</Text>
           <TouchableOpacity
             style={[styles.timeInput, { backgroundColor: c.surface || '#f5f5f5', borderColor: c.border || '#ccc' }]}
             onPress={() => setTimePicker({ day: key, field: 'open' })}
             activeOpacity={0.7}
           >
             <Text style={[styles.timeInputText, { color: (openingHours[key]?.open && c.text) || c.textSecondary || '#999' }]}>
-              {openingHours[key]?.open || 'Open'}
+              {openingHours[key]?.open || t('shop.open')}
             </Text>
             <Icon name="schedule" size={18} color={c.textSecondary || '#888'} style={styles.timeInputIcon} />
           </TouchableOpacity>
-          <Text style={[styles.toText, { color: c.textSecondary || '#666' }]}>to</Text>
+          <Text style={[styles.toText, { color: c.textSecondary || '#666' }]}>{t('shop.to')}</Text>
           <TouchableOpacity
             style={[styles.timeInput, { backgroundColor: c.surface || '#f5f5f5', borderColor: c.border || '#ccc' }]}
             onPress={() => setTimePicker({ day: key, field: 'close' })}
             activeOpacity={0.7}
           >
             <Text style={[styles.timeInputText, { color: (openingHours[key]?.close && c.text) || c.textSecondary || '#999' }]}>
-              {openingHours[key]?.close || 'Close'}
+              {openingHours[key]?.close || t('shop.close')}
             </Text>
             <Icon name="schedule" size={18} color={c.textSecondary || '#888'} style={styles.timeInputIcon} />
           </TouchableOpacity>
@@ -292,7 +352,7 @@ const ShopRegistration = ({ navigation }) => {
           <View style={[styles.timePickerContent, { backgroundColor: c.surface || '#fff' }]} onStartShouldSetResponder={() => true}>
             <View style={[styles.timePickerHeader, { borderBottomColor: c.border || '#eee' }]}>
               <Text style={[styles.timePickerTitle, { color: c.text }]}>
-                {timePicker ? `${timePicker.field === 'open' ? 'Open' : 'Close'} time` : ''}
+                {timePicker ? (timePicker.field === 'open' ? t('shop.openTime') : t('shop.closeTime')) : ''}
               </Text>
               <TouchableOpacity onPress={() => setTimePicker(null)} hitSlop={12}>
                 <Icon name="close" size={24} color={c.textSecondary || '#666'} />
@@ -321,7 +381,7 @@ const ShopRegistration = ({ navigation }) => {
       {loading ? (
         <ActivityIndicator size="large" color="#F8C24D" style={styles.loader} />
       ) : (
-        <CustomButton title="Register Shop" onPress={handleSubmit} />
+        <CustomButton title={t('shop.registerTitle')} onPress={handleSubmit} />
       )}
     </ScrollView>
     </SafeAreaView>
@@ -346,6 +406,16 @@ const styles = StyleSheet.create({
   fixedInfo: {
     fontSize: 12,
     marginBottom: 16,
+  },
+  payBanner: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  payBannerText: {
+    fontSize: 14,
+    marginBottom: 8,
   },
   marginTop: {
     marginTop: 24,

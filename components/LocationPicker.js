@@ -10,7 +10,18 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getStates, getDistricts, getCities } from '../data/locations';
 
-const LocationPicker = ({ state, district, city, onStateChange, onDistrictChange, onCityChange, colors = {} }) => {
+const LocationPicker = ({
+  state,
+  district,
+  city,
+  onStateChange,
+  onDistrictChange,
+  onCityChange,
+  colors = {},
+  stateLabel = 'State',
+  districtLabel = 'District',
+  cityLabel = 'City',
+}) => {
   const c = { surface: '#2A2A2A', text: '#fff', textSecondary: '#888', accent: '#F8C24D', border: '#444', ...colors };
   const [modalType, setModalType] = useState(null);
 
@@ -44,46 +55,46 @@ const LocationPicker = ({ state, district, city, onStateChange, onDistrictChange
   );
 
   const options = modalType === 'state' ? stateOptions : modalType === 'district' ? districtOptions : cityOptions;
-  const label = modalType === 'state' ? 'State' : modalType === 'district' ? 'District' : 'City';
+  const label = modalType === 'state' ? stateLabel : modalType === 'district' ? districtLabel : cityLabel;
 
   return (
     <>
       <View style={styles.row}>
         <View style={styles.field}>
-          <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>State *</Text>
+          <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{stateLabel} *</Text>
           <TouchableOpacity
             style={[styles.pickerBtn, { backgroundColor: c.surface, borderColor: c.border }]}
             onPress={() => setModalType('state')}
           >
             <Text style={[styles.pickerText, { color: state ? c.text : c.textSecondary }]}>
-              {state || 'Select state'}
+              {state || `Select ${stateLabel.toLowerCase()}`}
             </Text>
             <Icon name="keyboard-arrow-down" size={22} color={c.textSecondary} />
           </TouchableOpacity>
         </View>
         <View style={styles.field}>
-          <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>District *</Text>
+          <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{districtLabel} *</Text>
           <TouchableOpacity
             style={[styles.pickerBtn, { backgroundColor: c.surface, borderColor: c.border }]}
             onPress={() => state && setModalType('district')}
             disabled={!state}
           >
             <Text style={[styles.pickerText, { color: district ? c.text : c.textSecondary }]}>
-              {district || (state ? 'Select district' : 'Select state first')}
+              {district || (state ? `Select ${districtLabel.toLowerCase()}` : `Select ${stateLabel.toLowerCase()} first`)}
             </Text>
             <Icon name="keyboard-arrow-down" size={22} color={c.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
       <View style={styles.field}>
-        <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>City *</Text>
+        <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{cityLabel} *</Text>
         <TouchableOpacity
           style={[styles.pickerBtn, { backgroundColor: c.surface, borderColor: c.border }]}
           onPress={() => district && setModalType('city')}
           disabled={!district}
         >
           <Text style={[styles.pickerText, { color: city ? c.text : c.textSecondary }]}>
-            {city || (district ? 'Select city' : 'Select district first')}
+            {city || (district ? `Select ${cityLabel.toLowerCase()}` : `Select ${districtLabel.toLowerCase()} first`)}
           </Text>
           <Icon name="keyboard-arrow-down" size={22} color={c.textSecondary} />
         </TouchableOpacity>

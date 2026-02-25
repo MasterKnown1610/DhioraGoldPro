@@ -1,6 +1,6 @@
 // Change to your machine IP when testing on device (e.g. 'http://192.168.0.121:5000')
-export const BASE_URL = 'https://dhiora-gold-backend.vercel.app';
-// export const BASE_URL = 'http://localhost:5000';
+// export const BASE_URL = 'https://dhiora-gold-backend.vercel.app';
+export const BASE_URL = 'http://localhost:5000';
 
 export const API_URLS = {
   // Auth
@@ -35,6 +35,14 @@ export const API_URLS = {
   GoldUnlockPhone: `${BASE_URL}/api/gold/unlock-phone`,
   GoldBoostShop: `${BASE_URL}/api/gold/boost-shop`,
   GoldRemoveAds: `${BASE_URL}/api/gold/remove-ads`,
+
+  // Payments (Razorpay)
+  PaymentCreateOrder: `${BASE_URL}/api/payments/create-order`,
+  PaymentVerify: `${BASE_URL}/api/payments/verify`,
+
+  // Referral
+  ReferralMe: `${BASE_URL}/api/referral/me`,
+  ReferralRequestRefund: `${BASE_URL}/api/referral/request-refund`,
 
   // Health
   Health: `${BASE_URL}/health`,

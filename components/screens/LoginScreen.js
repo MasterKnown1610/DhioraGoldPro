@@ -11,10 +11,12 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Context from '../../context/Context';
 import CustomButton from '../CustomButton';
 
 const LoginScreen = ({ navigation }) => {
+  const { t } = useTranslation();
   const { auth, theme } = useContext(Context);
   const c = theme.colors;
   const [loginWithEmail, setLoginWithEmail] = useState(false);
@@ -28,15 +30,15 @@ const LoginScreen = ({ navigation }) => {
       : { phoneNumber: phoneNumber.trim(), password };
 
     if (loginWithEmail && !email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
+      Alert.alert(t('common.error'), t('login.enterEmailError'));
       return;
     }
     if (!loginWithEmail && !phoneNumber.trim()) {
-      Alert.alert('Error', 'Please enter your phone number');
+      Alert.alert(t('common.error'), t('login.enterPhoneError'));
       return;
     }
     if (!password) {
-      Alert.alert('Error', 'Please enter your password');
+      Alert.alert(t('common.error'), t('login.enterPasswordError'));
       return;
     }
 
@@ -44,7 +46,7 @@ const LoginScreen = ({ navigation }) => {
       await auth.login(payload);
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Login Failed', e.message || 'Invalid credentials');
+      Alert.alert(t('login.loginFailed'), e.message || t('login.invalidCredentials'));
     }
   };
 
@@ -54,32 +56,30 @@ const LoginScreen = ({ navigation }) => {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text style={[styles.title, { color: c.text }]}>Login</Text>
-        <Text style={[styles.subtitle, { color: c.textSecondary }]}>
-          Sign in with your account. After login you can register as service provider or shop.
-        </Text>
+        <Text style={[styles.title, { color: c.text }]}>{t('login.title')}</Text>
+        <Text style={[styles.subtitle, { color: c.textSecondary }]}>{t('login.subtitle')}</Text>
 
         <View style={styles.toggleRow}>
           <TouchableOpacity
             style={[styles.toggleBtn, !loginWithEmail && { backgroundColor: c.accent }]}
             onPress={() => setLoginWithEmail(false)}
           >
-            <Text style={[styles.toggleText, { color: !loginWithEmail ? '#000' : c.textSecondary }]}>Phone</Text>
+            <Text style={[styles.toggleText, { color: !loginWithEmail ? '#000' : c.textSecondary }]}>{t('common.phone')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.toggleBtn, loginWithEmail && { backgroundColor: c.accent }]}
             onPress={() => setLoginWithEmail(true)}
           >
-            <Text style={[styles.toggleText, { color: loginWithEmail ? '#000' : c.textSecondary }]}>Email</Text>
+            <Text style={[styles.toggleText, { color: loginWithEmail ? '#000' : c.textSecondary }]}>{t('common.email')}</Text>
           </TouchableOpacity>
         </View>
 
         {loginWithEmail ? (
           <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: c.text }]}>Email</Text>
+            <Text style={[styles.label, { color: c.text }]}>{t('common.email')}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-              placeholder="Enter email"
+              placeholder={t('common.enterEmail')}
               placeholderTextColor={c.textSecondary}
               value={email}
               onChangeText={setEmail}
@@ -89,10 +89,10 @@ const LoginScreen = ({ navigation }) => {
           </View>
         ) : (
           <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: c.text }]}>Phone Number</Text>
+            <Text style={[styles.label, { color: c.text }]}>{t('common.phoneNumber')}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-              placeholder="Enter phone number"
+              placeholder={t('common.enterPhone')}
               placeholderTextColor={c.textSecondary}
               value={phoneNumber}
               onChangeText={setPhoneNumber}
@@ -102,10 +102,10 @@ const LoginScreen = ({ navigation }) => {
         )}
 
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: c.text }]}>Password</Text>
+          <Text style={[styles.label, { color: c.text }]}>{t('common.password')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
-            placeholder="Enter password"
+            placeholder={t('common.enterPassword')}
             placeholderTextColor={c.textSecondary}
             value={password}
             onChangeText={setPassword}
@@ -116,13 +116,17 @@ const LoginScreen = ({ navigation }) => {
         {auth.loading ? (
           <ActivityIndicator size="large" color={c.accent} style={styles.loader} />
         ) : (
-          <CustomButton title="Login" onPress={handleLogin} />
+          <CustomButton title={t('common.login')} onPress={handleLogin} />
         )}
 
+        <TouchableOpacity style={styles.forgotLink} onPress={() => navigation.navigate('Forgot Password')}>
+          <Text style={[styles.registerLink, { color: c.accent }]}>{t('login.forgotPassword')}</Text>
+        </TouchableOpacity>
+
         <View style={styles.registerLinks}>
-          <Text style={[styles.registerText, { color: c.textSecondary }]}>Don't have an account? </Text>
+          <Text style={[styles.registerText, { color: c.textSecondary }]}>{t('login.noAccount')}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={[styles.registerLink, { color: c.accent }]}>Register</Text>
+            <Text style={[styles.registerLink, { color: c.accent }]}>{t('common.register')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -154,6 +158,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   loader: { marginVertical: 24 },
+  forgotLink: { marginTop: 12, alignSelf: 'flex-start' },
   registerLinks: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
   registerText: { fontSize: 14 },
   registerLink: { fontSize: 14, fontWeight: '600' },

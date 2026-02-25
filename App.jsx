@@ -1,15 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { MobileAds } from 'react-native-google-mobile-ads';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import ContextState from './context/ContextState';
 import AppNavigator from './components/AppNavigator';
+import { initI18n } from './i18n';
 
 /**
  * Initialize Google Mobile Ads SDK on app start.
- * Package exports MobileAds (capital M) as named export; default also works.
  */
 function initMobileAds() {
-  // In __DEV__, add your device ID from logcat (Android) or Xcode (iOS) when you see it on first ad request
   const config = __DEV__ ? { testDeviceIdentifiers: [] } : {};
   const mobileAds = MobileAds();
   mobileAds
@@ -24,9 +24,25 @@ function initMobileAds() {
 }
 
 export default function App() {
+  const [i18nReady, setI18nReady] = useState(false);
+
   useEffect(() => {
-    initMobileAds();
+    initI18n()
+      .then(() => setI18nReady(true))
+      .catch(() => setI18nReady(true));
   }, []);
+
+  useEffect(() => {
+    if (i18nReady) initMobileAds();
+  }, [i18nReady]);
+
+  if (!i18nReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' }}>
+        <ActivityIndicator size="large" color="#F8C24D" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaProvider>
