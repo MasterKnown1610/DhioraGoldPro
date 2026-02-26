@@ -72,6 +72,11 @@ const UserRegistration = ({ navigation }) => {
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
         description: 'Service provider subscription (₹10)',
+        prefill: {
+          name: form.userName?.trim() || auth.user?.name,
+          email: auth.user?.email || undefined,
+          contact: form.phoneNumber?.trim() || auth.user?.phoneNumber || undefined,
+        },
       });
       await verifyPayment({
         orderId: orderData.orderId,

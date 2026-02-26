@@ -113,6 +113,11 @@ const EditShopScreen = ({ navigation }) => {
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
         description: 'Shop listing subscription (₹25)',
+        prefill: {
+          name: form.shopName?.trim() || auth.user?.name,
+          email: auth.user?.email || undefined,
+          contact: auth.user?.phoneNumber || form.whatsappNumber?.trim() || undefined,
+        },
       });
       await verifyPayment({
         orderId: orderData.orderId,
