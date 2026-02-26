@@ -23,7 +23,11 @@ const UserCard = ({ item, colors, onViewProfile }) => {
   const location = [item.address, item.district, item.state].filter(Boolean).join(', ') || item.location;
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surface }]}>
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: c.surface }]}
+      onPress={() => onViewProfile?.(item)}
+      activeOpacity={0.85}
+    >
       <View style={styles.cardInner}>
         <View style={styles.profileRow}>
           <View style={styles.imageWrapper}>
@@ -55,17 +59,13 @@ const UserCard = ({ item, colors, onViewProfile }) => {
         ) : null}
 
         <View style={styles.bottomRow}>
-          <TouchableOpacity
-            style={styles.viewProfileBtn}
-            onPress={() => onViewProfile?.(item)}
-            activeOpacity={0.7}
-          >
+          <View style={styles.viewProfileBtn}>
             <Text style={[styles.viewProfileText, { color: c.accent }]}>View Profile</Text>
             <Icon name="arrow-forward" size={18} color={c.accent} style={styles.arrowIcon} />
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

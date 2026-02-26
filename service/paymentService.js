@@ -28,7 +28,28 @@ export async function createOrder(type) {
 }
 
 /**
- * Verify payment after Razorpay success.
+ * Create Razorpay subscription (AutoPay). Returns { subscription_id, razorpay_key }.
+ * Activation happens via webhook after first payment; do not activate from frontend.
+ * @param {string} planType - 'SERVICE' | 'SHOP'
+ */
+export async function createSubscription(planType) {
+  const token = await AsyncStorage.getItem(TOKEN_KEY);
+  if (!token) throw new Error('Login required');
+  const res = await fetch(API_URLS.SubscriptionCreate, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ plan_type: planType }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to create subscription');
+  return data.data;
+}
+
+/**
+ * Verify payment after Razorpay success (for one-time order flow).
  */
 export async function verifyPayment(payload) {
   const res = await fetch(API_URLS.PaymentVerify, {
@@ -42,10 +63,10 @@ export async function verifyPayment(payload) {
 }
 
 /**
- * Open Razorpay checkout. Uses react-native-razorpay (must be linked; on Android rebuild after install).
- * Pass prefill to avoid Razorpay asking for contact/email again (uses logged-in user details).
- * @param {{ key_id: string, razorpayOrderId: string, amount: number, currency: string, description: string, name?: string, prefill?: { name?: string, email?: string, contact?: string } }} options
- * @returns {Promise<{ razorpay_payment_id: string, razorpay_order_id: string, razorpay_signature: string }>}
+ * Open Razorpay checkout. Supports both one-time order (order_id + amount) and subscription (subscription_id).
+ * For subscription flow, pass subscription_id and key_id; activation is done via webhook, not frontend.
+ * @param {{ key_id: string, subscription_id?: string, razorpayOrderId?: string, amount?: number, currency?: string, description?: string, name?: string, prefill?: { name?: string, email?: string, contact?: string } }} options
+ * @returns {Promise<{ razorpay_payment_id: string, razorpay_order_id?: string, razorpay_signature: string, subscription_id?: string }>}
  */
 export async function openRazorpayCheckout(options) {
   const RNRazorpayCheckout = NativeModules.RNRazorpayCheckout;
@@ -68,6 +89,7 @@ export async function openRazorpayCheckout(options) {
         razorpay_payment_id: paymentId,
         razorpay_order_id: orderId,
         razorpay_signature: signature,
+        subscription_id: options.subscription_id,
       });
     };
     const safeReject = (err) => {
@@ -88,15 +110,21 @@ export async function openRazorpayCheckout(options) {
       );
     }, CHECKOUT_OPEN_TIMEOUT_MS);
 
+    const isSubscription = !!options.subscription_id;
     const checkoutOptions = {
-      amount: String(options.amount),
-      currency: options.currency || 'INR',
       key_id: options.key_id,
       key: options.key_id,
-      order_id: options.razorpayOrderId,
       name: options.name || 'Dhiora Gold',
       description: options.description || 'Subscription',
+      currency: options.currency || 'INR',
     };
+
+    if (isSubscription) {
+      checkoutOptions.subscription_id = options.subscription_id;
+    } else {
+      checkoutOptions.amount = String(options.amount || 0);
+      checkoutOptions.order_id = options.razorpayOrderId;
+    }
 
     // Prefill contact/email/name so Razorpay doesn't ask again (user is already logged in)
     if (options.prefill) {
@@ -124,7 +152,6 @@ export async function openRazorpayCheckout(options) {
       }
     };
 
-    // On Android, opening immediately after tap can sometimes run before getCurrentActivity() is ready.
     InteractionManager.runAfterInteractions(() => {
       openCheckout();
     });

@@ -23,7 +23,11 @@ const ShopCard = ({ item, colors, onViewDetails }) => {
   const image = item.images?.[0] || item.image || PLACEHOLDER_IMAGE;
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surface }]}>
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: c.surface }]}
+      onPress={() => onViewDetails?.(item)}
+      activeOpacity={0.85}
+    >
       <View style={styles.imageWrapper}>
         <Image source={{ uri: image }} style={styles.cardImage} resizeMode="cover" />
       </View>
@@ -44,15 +48,11 @@ const ShopCard = ({ item, colors, onViewDetails }) => {
             {[item.district, item.state].filter(Boolean).join(', ')}
           </Text>
         )}
-        <TouchableOpacity
-          style={[styles.viewDetailsBtn, { backgroundColor: c.accent }]}
-          onPress={() => onViewDetails?.(item)}
-          activeOpacity={0.85}
-        >
+        <View style={[styles.viewDetailsBtn, { backgroundColor: c.accent }]}>
           <Text style={[styles.viewDetailsText, { color: c.accentText }]}>View Details</Text>
-        </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -318,6 +318,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   viewDetailsText: {
     fontSize: 14,

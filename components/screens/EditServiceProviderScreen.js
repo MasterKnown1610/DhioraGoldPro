@@ -17,7 +17,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import Context from '../../context/Context';
 import CustomButton from '../CustomButton';
 import LocationPicker from '../LocationPicker';
-import { createOrder, verifyPayment, openRazorpayCheckout } from '../../service/paymentService';
+import { createSubscription, openRazorpayCheckout } from '../../service/paymentService';
 
 const FIELD_KEYS = [
   { key: 'userName', labelKey: 'serviceProvider.userName', required: true, placeholderKey: 'serviceProvider.enterUserName' },
@@ -76,28 +76,20 @@ const EditServiceProviderScreen = ({ navigation }) => {
   const payUserSubscription = async () => {
     setLoading(true);
     try {
-      const orderData = await createOrder('user_subscription');
-      const paymentData = await openRazorpayCheckout({
-        key_id: orderData.key_id,
-        razorpayOrderId: orderData.razorpayOrderId,
-        amount: orderData.amount,
-        currency: orderData.currency || 'INR',
-        description: 'Service provider subscription (₹10)',
+      const { subscription_id, razorpay_key } = await createSubscription('SERVICE');
+      await openRazorpayCheckout({
+        key_id: razorpay_key,
+        subscription_id,
+        currency: 'INR',
+        description: 'Service provider subscription (₹10/month, AutoPay)',
         prefill: {
           name: form.userName?.trim() || auth.user?.name,
           email: auth.user?.email || undefined,
           contact: form.phoneNumber?.trim() || auth.user?.phoneNumber || undefined,
         },
       });
-      await verifyPayment({
-        orderId: orderData.orderId,
-        type: 'user_subscription',
-        razorpay_order_id: paymentData.razorpay_order_id,
-        razorpay_payment_id: paymentData.razorpay_payment_id,
-        razorpay_signature: paymentData.razorpay_signature,
-      });
       await auth.getMe();
-      Alert.alert(t('common.success'), t('serviceProvider.subscriptionRenewed'));
+      Alert.alert(t('common.success'), 'Subscription renewed. You will be charged monthly until you cancel.');
     } catch (e) {
       if (e.message !== 'Payment cancelled') Alert.alert(t('serviceProvider.paymentError'), e.message || 'Payment failed');
     } finally {
@@ -174,7 +166,7 @@ const EditServiceProviderScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
+    // <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
       <ScrollView style={[styles.container, { backgroundColor: c.background }]}>
         <Text style={[styles.sectionTitle, { color: c.text }]}>{t('serviceProvider.editTitle')}</Text>
         <Text style={[styles.fixedInfo, { color: c.textSecondary }]}>
@@ -255,14 +247,18 @@ const EditServiceProviderScreen = ({ navigation }) => {
         ) : (
           <CustomButton title={t('serviceProvider.saveChanges')} onPress={handleSubmit} />
         )}
+        <View style={styles.inputContainer}></View>
+        <View style={styles.inputContainer}></View>
+        <View style={styles.inputContainer}></View>
+        <View style={styles.inputContainer}></View>
       </ScrollView>
-    </SafeAreaView>
+    // </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, padding: 16},
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   errorText: { fontSize: 16 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },

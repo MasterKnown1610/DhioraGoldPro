@@ -19,7 +19,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import Context from '../../context/Context';
 import CustomButton from '../CustomButton';
 import LocationPicker from '../LocationPicker';
-import { createOrder, verifyPayment, openRazorpayCheckout } from '../../service/paymentService';
+import { createSubscription, openRazorpayCheckout } from '../../service/paymentService';
 
 const MAX_IMAGES = 5;
 
@@ -106,28 +106,20 @@ const EditShopScreen = ({ navigation }) => {
   const payShopSubscription = async () => {
     setLoading(true);
     try {
-      const orderData = await createOrder('shop_subscription');
-      const paymentData = await openRazorpayCheckout({
-        key_id: orderData.key_id,
-        razorpayOrderId: orderData.razorpayOrderId,
-        amount: orderData.amount,
-        currency: orderData.currency || 'INR',
-        description: 'Shop listing subscription (₹25)',
+      const { subscription_id, razorpay_key } = await createSubscription('SHOP');
+      await openRazorpayCheckout({
+        key_id: razorpay_key,
+        subscription_id,
+        currency: 'INR',
+        description: 'Shop listing subscription (₹25/month, AutoPay)',
         prefill: {
           name: form.shopName?.trim() || auth.user?.name,
           email: auth.user?.email || undefined,
           contact: auth.user?.phoneNumber || form.whatsappNumber?.trim() || undefined,
         },
       });
-      await verifyPayment({
-        orderId: orderData.orderId,
-        type: 'shop_subscription',
-        razorpay_order_id: paymentData.razorpay_order_id,
-        razorpay_payment_id: paymentData.razorpay_payment_id,
-        razorpay_signature: paymentData.razorpay_signature,
-      });
       await auth.getMe();
-      Alert.alert(t('common.success'), t('shop.subscriptionRenewed'));
+      Alert.alert(t('common.success'), 'Subscription renewed. You will be charged monthly until you cancel.');
     } catch (e) {
       if (e.message !== 'Payment cancelled') Alert.alert(t('shop.paymentError'), e.message || 'Payment failed');
     } finally {
@@ -232,7 +224,7 @@ const EditShopScreen = ({ navigation }) => {
   const canRemoveImages = shopImages.length > 0;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
+   
       <ScrollView style={[styles.container, { backgroundColor: c.background }]}>
         <Text style={[styles.sectionTitle, { color: c.text }]}>{t('shop.editTitle')}</Text>
         <Text style={[styles.fixedInfo, { color: c.textSecondary }]}>{t('shop.phoneLabel', { phone: phoneOrEmail })}</Text>
@@ -410,8 +402,11 @@ const EditShopScreen = ({ navigation }) => {
         ) : (
           <CustomButton title={t('serviceProvider.saveChanges')} onPress={handleSubmit} />
         )}
+        <View style={styles.inputContainer}></View>
+        <View style={styles.inputContainer}></View>
+        <View style={styles.inputContainer}></View>
       </ScrollView>
-    </SafeAreaView>
+  
   );
 };
 

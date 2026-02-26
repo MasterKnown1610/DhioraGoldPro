@@ -16,6 +16,7 @@ import UsersScreen from './screens/UsersScreen';
 import UserDetailsScreen from './screens/UserDetailsScreen';
 import HelpScreen from './screens/HelpScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import MyReferralScreen from './screens/MyReferralScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
@@ -167,6 +168,11 @@ function ProfileStack() {
         name="ProfileMain"
         component={ProfileScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="My Referral"
+        component={MyReferralScreen}
+        options={{ title: 'My Referral Code', headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
       />
       <Stack.Screen
         name="Login"

@@ -40,6 +40,9 @@ export const API_URLS = {
   PaymentCreateOrder: `${BASE_URL}/api/payments/create-order`,
   PaymentVerify: `${BASE_URL}/api/payments/verify`,
 
+  // Subscriptions (Razorpay AutoPay)
+  SubscriptionCreate: `${BASE_URL}/api/subscription/create`,
+
   // Referral
   ReferralMe: `${BASE_URL}/api/referral/me`,
   ReferralRequestRefund: `${BASE_URL}/api/referral/request-refund`,

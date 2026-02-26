@@ -1,48 +1,31 @@
-import React, { useContext, useState, useCallback, useEffect } from 'react';
+import React, { useContext, useState, useCallback } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   ScrollView,
   SafeAreaView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   Image,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
   RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import CustomButton from '../CustomButton';
 import Context from '../../context/Context';
-import { API_URLS } from '../../service/config';
-import { WITHDRAWAL_MESSAGES } from '../../constants/withdrawalMessages';
 import i18n, { setStoredLanguage } from '../../i18n';
 
-const TOKEN_KEY = '@gold_token';
-
-const WITHDRAWAL_TYPE_OPTIONS = [
-  { value: 'phonepe', label: 'PhonePe' },
-  { value: 'gpay', label: 'GPay' },
-];
-
 const MENU_ITEMS = [
+  { id: 'referral', labelKey: 'profile.referral', icon: 'card-giftcard', route: 'My Referral' },
   { id: 'manage', labelKey: 'profile.manageProfile', icon: 'person', route: 'ManageProfile' },
   { id: 'manageShop', labelKey: 'profile.manageShop', icon: 'storefront', route: 'ManageShop' },
   { id: 'password', labelKey: 'profile.passwordSecurity', icon: 'lock', route: 'PasswordSecurity' },
-  { id: 'notifications', labelKey: 'profile.notifications', icon: 'notifications', route: null },
   { id: 'language', labelKey: 'profile.language', icon: 'language', route: null },
-  { id: 'about', labelKey: 'profile.aboutUs', icon: 'info-outline', route: null },
   { id: 'theme', labelKey: 'profile.theme', icon: 'palette', route: null },
-  { id: 'appointments', labelKey: 'profile.appointments', icon: 'event', route: null },
   { id: 'help', labelKey: 'profile.helpCenter', icon: 'help-outline', route: 'HelpCenter' },
-  { id: 'contact', labelKey: 'profile.contactUs', icon: 'phone', route: null },
 ];
 
 const LANGUAGES = [
@@ -55,13 +38,7 @@ const ProfileScreen = ({ navigation }) => {
   const { t } = useTranslation();
   const { auth, theme } = useContext(Context);
   const c = theme.colors;
-  const [refundLoading, setRefundLoading] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
-  const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawType, setWithdrawType] = useState('phonepe');
-  const [withdrawPhone, setWithdrawPhone] = useState('');
-  const [withdrawTypePickerVisible, setWithdrawTypePickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch user details when Profile screen is focused (same data as login)
@@ -87,81 +64,12 @@ const ProfileScreen = ({ navigation }) => {
     fetchUserDetails();
   }, []);
 
-  const hasPendingWithdrawal = !!auth.user?.referralRefundRequestedAt;
-
-  // When withdrawal is pending, poll for approval/rejection so balance and button state update without leaving the screen
-  // useEffect(() => {
-  //   if (!auth.token || !hasPendingWithdrawal) return;
-  //   fetchUserDetails();
-  //   // const interval = setInterval(fetchUserDetails, 5000);
-  //   // return () => clearInterval(interval);
-  // }, [auth.token, hasPendingWithdrawal]);
-
-  const referralCode = auth.user?.referralCode || null;
-  const referralBalance = auth.user?.referralBalance ?? 0;
-  const canRefund = referralBalance >= 10 && !auth.user?.referralRefundRequestedAt;
-
   const displayName =
     auth.user?.userProfile?.userName || auth.user?.name || auth.user?.email || auth.user?.phoneNumber || 'Guest';
   const displayEmail = auth.user?.email || auth.user?.phoneNumber || '—';
   const profileImageUri = auth.user?.userProfile?.profileImage || null;
   const hasUserProfile = !!auth.user?.userProfile;
   const hasShopProfile = !!auth.user?.shopProfile;
-
-  const openWithdrawModal = useCallback(() => {
-    if (!canRefund || refundLoading) return;
-    setWithdrawAmount('');
-    setWithdrawType('phonepe');
-    setWithdrawPhone('');
-    setWithdrawModalVisible(true);
-  }, [canRefund, refundLoading]);
-
-  const closeWithdrawModal = useCallback(() => {
-    setWithdrawModalVisible(false);
-    setWithdrawAmount('');
-    setWithdrawType('phonepe');
-    setWithdrawPhone('');
-    setWithdrawTypePickerVisible(false);
-  }, []);
-
-  const requestRefund = useCallback(async () => {
-    const amountNum = Number(withdrawAmount?.trim().replace(/,/g, ''));
-    if (!Number.isFinite(amountNum) || amountNum < 10) {
-      Alert.alert('Invalid amount', WITHDRAWAL_MESSAGES.INVALID_AMOUNT);
-      return;
-    }
-    if (amountNum > referralBalance) {
-      Alert.alert('Invalid amount', WITHDRAWAL_MESSAGES.INVALID_AMOUNT);
-      return;
-    }
-    const phoneDigits = (withdrawPhone || '').replace(/\D/g, '');
-    if (phoneDigits.length !== 10) {
-      Alert.alert('Invalid phone', WITHDRAWAL_MESSAGES.INVALID_MOBILE);
-      return;
-    }
-    setRefundLoading(true);
-    try {
-      const token = await AsyncStorage.getItem(TOKEN_KEY);
-      const res = await fetch(API_URLS.ReferralRequestRefund, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          amount: amountNum,
-          withdrawalType: withdrawType,
-          withdrawalPhone: phoneDigits,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Request failed');
-      await auth.getMe();
-      closeWithdrawModal();
-      Alert.alert('Success', WITHDRAWAL_MESSAGES.REQUEST_RAISED);
-    } catch (e) {
-      Alert.alert('Error', e.message || 'Could not request refund');
-    } finally {
-      setRefundLoading(false);
-    }
-  }, [withdrawAmount, withdrawType, withdrawPhone, referralBalance, auth, closeWithdrawModal]);
 
   const handleLogout = () => {
     Alert.alert(t('common.logout'), t('profile.logoutConfirm'), [
@@ -171,6 +79,14 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleMenuPress = (item) => {
+    if (item.id === 'referral') {
+      if (!auth.token) {
+        navigation.navigate('Login');
+        return;
+      }
+      navigation.navigate('My Referral');
+      return;
+    }
     if (item.id === 'theme') {
       theme.toggleTheme();
       return;
@@ -200,9 +116,6 @@ const ProfileScreen = ({ navigation }) => {
     if (item.id === 'language') {
       setLanguageModalVisible(true);
       return;
-    }
-    if (item.id === 'notifications' || item.id === 'about' || item.id === 'appointments' || item.id === 'contact') {
-      Alert.alert(t(item.labelKey), 'Coming soon.');
     }
   };
 
@@ -265,7 +178,19 @@ const ProfileScreen = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Login / Register or Logout */}
+        {/* Earn Gold – bottom (logged in) */}
+        {auth.token && (
+          <TouchableOpacity
+            style={[styles.extraRow, { backgroundColor: c.surface, borderColor: c.border }]}
+            onPress={() => navigation.navigate('Earn Gold')}
+          >
+            <Icon name="monetization-on" size={22} color={c.accent} style={styles.menuIcon} />
+            <Text style={[styles.menuLabel, { color: c.text }]}>{t('profile.earnGold')}</Text>
+            <Icon name="chevron-right" size={22} color={c.textSecondary} />
+          </TouchableOpacity>
+        )}
+
+        {/* Login / Register or Logout – last */}
         <View style={styles.actions}>
           {auth.token ? (
             <CustomButton title={t('common.logout')} onPress={handleLogout} />
@@ -280,163 +205,6 @@ const ProfileScreen = ({ navigation }) => {
             </>
           )}
         </View>
-
-        {/* Referral block – bottom (logged in) */}
-        {auth.token && (
-          <View style={[styles.referralCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-            <Text style={[styles.referralTitle, { color: c.text }]}>{t('profile.referral')}</Text>
-            <Text style={[styles.referralDetail, { color: c.textSecondary }]}>
-              {t('profile.shareCode')} <Text style={[styles.referralCode, { color: c.accent }]}>{referralCode || '—'}</Text>
-            </Text>
-            <Text style={[styles.referralDetail, { color: c.textSecondary }]}>
-              {t('profile.balance', { balance: referralBalance })}
-            </Text>
-            {referralBalance < 10 && !auth.user?.referralRefundRequestedAt && (
-              <Text style={[styles.referralHint, { color: c.textSecondary }]}>
-                {WITHDRAWAL_MESSAGES.MIN_BALANCE_REQUIRED}
-              </Text>
-            )}
-            {canRefund && (
-              <Text style={[styles.referralHint, { color: c.textSecondary }]}>
-                Withdraw when balance ≥ ₹10. Processed within 2 business days.
-              </Text>
-            )}
-            {auth.user?.referralRefundRequestedAt && (
-              <Text style={[styles.referralHint, { color: c.textSecondary }]}>
-                {WITHDRAWAL_MESSAGES.REQUEST_RAISED}
-              </Text>
-            )}
-            {refundLoading ? (
-              <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 8 }} />
-            ) : (
-              <CustomButton
-                title={t('profile.requestWithdrawal')}
-                onPress={openWithdrawModal}
-                disabled={!canRefund}
-              />
-            )}
-          </View>
-        )}
-
-        {/* Earn Gold – bottom (logged in) */}
-        {auth.token && (
-          <TouchableOpacity
-            style={[styles.extraRow, { backgroundColor: c.surface, borderColor: c.border }]}
-            onPress={() => navigation.navigate('Earn Gold')}
-          >
-            <Icon name="monetization-on" size={22} color={c.accent} style={styles.menuIcon} />
-            <Text style={[styles.menuLabel, { color: c.text }]}>{t('profile.earnGold')}</Text>
-            <Icon name="chevron-right" size={22} color={c.textSecondary} />
-          </TouchableOpacity>
-        )}
-
-        {/* Withdrawal amount modal */}
-        <Modal
-          visible={withdrawModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={closeWithdrawModal}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={closeWithdrawModal}
-          >
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              style={styles.modalContentWrap}
-            >
-              <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-                <View style={[styles.withdrawModalCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-                  <Text style={[styles.withdrawModalTitle, { color: c.text }]}>Withdraw</Text>
-                  <Text style={[styles.withdrawModalBalance, { color: c.textSecondary }]}>
-                    Available balance: ₹{referralBalance}
-                  </Text>
-                  <Text style={[styles.withdrawModalLabel, { color: c.text }]}>Amount to withdraw (₹)</Text>
-                  <TextInput
-                    style={[styles.withdrawModalInput, { backgroundColor: c.background, color: c.text, borderColor: c.border }]}
-                    placeholder="Enter amount"
-                    placeholderTextColor={c.textSecondary}
-                    value={withdrawAmount}
-                    onChangeText={setWithdrawAmount}
-                    keyboardType="numeric"
-                  />
-                  <Text style={[styles.withdrawModalHint, { color: c.textSecondary }]}>
-                    Min ₹10, max ₹{referralBalance}
-                  </Text>
-                  <Text style={[styles.withdrawModalLabel, { color: c.text, marginTop: 12 }]}>Payment type</Text>
-                  <TouchableOpacity
-                    style={[styles.withdrawModalDropdown, { backgroundColor: c.background, borderColor: c.border }]}
-                    onPress={() => setWithdrawTypePickerVisible((v) => !v)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.withdrawModalDropdownText, { color: c.text }]}>
-                      {WITHDRAWAL_TYPE_OPTIONS.find((o) => o.value === withdrawType)?.label ?? 'Select'}
-                    </Text>
-                    <Icon name={withdrawTypePickerVisible ? 'expand-less' : 'expand-more'} size={24} color={c.textSecondary} />
-                  </TouchableOpacity>
-                  {withdrawTypePickerVisible && (
-                    <View style={[styles.withdrawModalDropdownList, { backgroundColor: c.background, borderColor: c.border }]}>
-                      {WITHDRAWAL_TYPE_OPTIONS.map((opt, idx) => (
-                        <TouchableOpacity
-                          key={opt.value}
-                          style={[
-                            styles.withdrawModalDropdownOption,
-                            { borderBottomColor: c.border },
-                            idx === WITHDRAWAL_TYPE_OPTIONS.length - 1 && { borderBottomWidth: 0 },
-                          ]}
-                          onPress={() => {
-                            setWithdrawType(opt.value);
-                            setWithdrawTypePickerVisible(false);
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={{ color: c.text, fontSize: 16 }}>{opt.label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                  <Text style={[styles.withdrawModalLabel, { color: c.text, marginTop: 12 }]}>
-                    Phone number (for {withdrawType === 'gpay' ? 'GPay' : 'PhonePe'})
-                  </Text>
-                  <TextInput
-                    style={[styles.withdrawModalInput, { backgroundColor: c.background, color: c.text, borderColor: c.border }]}
-                    placeholder="10-digit mobile number"
-                    placeholderTextColor={c.textSecondary}
-                    value={withdrawPhone}
-                    onChangeText={(t) => setWithdrawPhone(t.replace(/\D/g, '').slice(0, 10))}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                  />
-                  <Text style={[styles.withdrawModalHint, { color: c.textSecondary, marginBottom: 16 }]}>
-                    10-digit number linked to your UPI
-                  </Text>
-                  <View style={styles.withdrawModalActions}>
-                    <TouchableOpacity
-                      style={[styles.withdrawModalBtnCancel, { backgroundColor: c.border }]}
-                      onPress={closeWithdrawModal}
-                    >
-                      <Text style={[styles.withdrawModalBtnText, { color: c.text }]}>{t('common.cancel')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.withdrawModalBtnSubmit, { backgroundColor: c.accent }]}
-                      onPress={requestRefund}
-                      disabled={refundLoading}
-                    >
-                      {refundLoading ? (
-                        <ActivityIndicator size="small" color={c.accentText || '#1A1A1A'} />
-                      ) : (
-                        <Text style={[styles.withdrawModalBtnText, { color: c.accentText || '#1A1A1A' }]}>
-                          {t('profile.requestWithdrawal')}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </KeyboardAvoidingView>
-          </TouchableOpacity>
-        </Modal>
 
         {/* Language selection modal */}
         <Modal
@@ -520,16 +288,6 @@ const styles = StyleSheet.create({
   menuRowLast: { borderBottomWidth: 0 },
   menuIcon: { marginRight: 14 },
   menuLabel: { flex: 1, fontSize: 16, fontWeight: '500' },
-  referralCard: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  referralTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  referralDetail: { fontSize: 14, marginTop: 4 },
-  referralCode: { fontWeight: '700' },
-  referralHint: { fontSize: 12, marginTop: 8 },
   extraRow: {
     flexDirection: 'row',
     alignItems: 'center',

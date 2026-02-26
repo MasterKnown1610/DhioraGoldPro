@@ -19,7 +19,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import Context from '../context/Context';
 import CustomButton from './CustomButton';
 import LocationPicker from './LocationPicker';
-import { createOrder, verifyPayment, openRazorpayCheckout } from '../service/paymentService';
+import { createSubscription, openRazorpayCheckout } from '../service/paymentService';
 
 const MAX_IMAGES = 5;
 
@@ -79,25 +79,17 @@ const ShopRegistration = ({ navigation }) => {
   const payShopSubscription = async () => {
     setLoading(true);
     try {
-      const orderData = await createOrder('shop_subscription');
-      const paymentData = await openRazorpayCheckout({
-        key_id: orderData.key_id,
-        razorpayOrderId: orderData.razorpayOrderId,
-        amount: orderData.amount,
-        currency: orderData.currency || 'INR',
-        description: 'Shop listing subscription (₹25)',
+      const { subscription_id, razorpay_key } = await createSubscription('SHOP');
+      await openRazorpayCheckout({
+        key_id: razorpay_key,
+        subscription_id,
+        currency: 'INR',
+        description: 'Shop listing subscription (₹25/month, AutoPay)',
         prefill: {
           name: form.shopName?.trim() || auth.user?.name,
           email: auth.user?.email || undefined,
           contact: auth.user?.phoneNumber || form.whatsappNumber?.trim() || undefined,
         },
-      });
-      await verifyPayment({
-        orderId: orderData.orderId,
-        type: 'shop_subscription',
-        razorpay_order_id: paymentData.razorpay_order_id,
-        razorpay_payment_id: paymentData.razorpay_payment_id,
-        razorpay_signature: paymentData.razorpay_signature,
       });
       await auth.getMe();
       return true;
