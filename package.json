@@ -5,6 +5,7 @@
   "scripts": {
     "android": "react-native run-android",
     "android:jdk17": "JAVA_HOME=$(/usr/libexec/java_home -v 17) react-native run-android",
+    "build:android:aab:jdk17": "cd android && JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew bundleRelease",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
