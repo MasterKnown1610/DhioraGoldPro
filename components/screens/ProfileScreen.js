@@ -481,7 +481,7 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 32 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 48 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
