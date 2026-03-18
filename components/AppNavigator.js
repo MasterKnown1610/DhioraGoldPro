@@ -24,6 +24,9 @@ import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import EditServiceProviderScreen from './screens/EditServiceProviderScreen';
 import EditShopScreen from './screens/EditShopScreen';
 import RewardScreen from '../src/screens/RewardScreen';
+import MyCatalogsScreen from './screens/MyCatalogsScreen';
+import CatalogDetailScreen from './screens/CatalogDetailScreen';
+import PublicCatalogScreen from './screens/PublicCatalogScreen';
 import LogoImage from '../assets/Picture.png';
 
 import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
@@ -41,13 +44,31 @@ const HeaderLogo = () => (
   </View>
 );
 
+const linking = {
+  prefixes: ['dhioragold://'],
+  config: {
+    screens: {
+      Shops: {
+        screens: {
+          'Shop Details': 'shop/:shopId',
+        },
+      },
+      Users: {
+        screens: {
+          'User Details': 'user/:userId',
+        },
+      },
+    },
+  },
+};
+
 export default function AppNavigator() {
   const { t } = useTranslation();
   const { theme } = useContext(Context);
   const c = theme.colors;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
@@ -130,6 +151,7 @@ function ShopsStack() {
     >
       <Stack.Screen name="ShopsList" component={ShopsScreen} />
       <Stack.Screen name="Shop Details" component={ShopDetailsScreen} />
+      <Stack.Screen name="Public Catalog" component={PublicCatalogScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -148,6 +170,7 @@ function UsersStack() {
     >
       <Stack.Screen name="UsersList" component={UsersScreen} />
       <Stack.Screen name="User Details" component={UserDetailsScreen} />
+      <Stack.Screen name="Public Catalog" component={PublicCatalogScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -218,6 +241,21 @@ function ProfileStack() {
         name="Earn Gold"
         component={RewardScreen}
         options={{ headerTitle: 'Earn Gold', headerStyle: { backgroundColor: '#F8C24D' }, headerTintColor: 'black' }}
+      />
+      <Stack.Screen
+        name="My Catalog"
+        component={MyCatalogsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Catalog Detail"
+        component={CatalogDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Public Catalog"
+        component={PublicCatalogScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

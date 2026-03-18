@@ -9,6 +9,7 @@ import {
   Alert,
   Image,
   Modal,
+  Share,
   RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,6 +23,7 @@ const MENU_ITEMS = [
   { id: 'referral', labelKey: 'profile.referral', icon: 'card-giftcard', route: 'My Referral' },
   { id: 'manage', labelKey: 'profile.manageProfile', icon: 'person', route: 'ManageProfile' },
   { id: 'manageShop', labelKey: 'profile.manageShop', icon: 'storefront', route: 'ManageShop' },
+  { id: 'catalog', labelKey: 'profile.myCatalog', icon: 'photo-library', route: 'My Catalog' },
   { id: 'password', labelKey: 'profile.passwordSecurity', icon: 'lock', route: 'PasswordSecurity' },
   { id: 'language', labelKey: 'profile.language', icon: 'language', route: null },
   { id: 'theme', labelKey: 'profile.theme', icon: 'palette', route: null },
@@ -71,6 +73,28 @@ const ProfileScreen = ({ navigation }) => {
   const hasUserProfile = !!auth.user?.userProfile;
   const hasShopProfile = !!auth.user?.shopProfile;
 
+  const handleShareProfile = async () => {
+    const shopId = auth.user?.shopProfile?._id;
+    const userId = auth.user?.userProfile?._id;
+    const name = displayName;
+    const BASE = 'https://dhiora-gold-backend.vercel.app';
+
+    let url, message;
+    if (shopId) {
+      url = `${BASE}/share/shop/${shopId}`;
+      message = `Check out ${name}'s shop on Dhiora Gold!\n${url}`;
+    } else if (userId) {
+      url = `${BASE}/share/user/${userId}`;
+      message = `Check out ${name} on Dhiora Gold!\n${url}`;
+    } else {
+      Alert.alert('No profile', 'Complete your shop or service provider profile first to share it.');
+      return;
+    }
+    try {
+      await Share.share({ message, url });
+    } catch (_) {}
+  };
+
   const handleLogout = () => {
     Alert.alert(t('common.logout'), t('profile.logoutConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -107,6 +131,14 @@ const ProfileScreen = ({ navigation }) => {
         return;
       }
       navigation.navigate('Change Password');
+      return;
+    }
+    if (item.id === 'catalog') {
+      if (!auth.token) {
+        navigation.navigate('Login');
+        return;
+      }
+      navigation.navigate('My Catalog');
       return;
     }
     if (item.id === 'help') {
@@ -155,6 +187,16 @@ const ProfileScreen = ({ navigation }) => {
             <Text style={[styles.displayEmail, { color: c.textSecondary }]} numberOfLines={1}>
               {displayEmail}
             </Text>
+            {auth.token && (auth.user?.shopProfile || auth.user?.userProfile) ? (
+              <TouchableOpacity
+                style={[styles.shareProfileBtn, { backgroundColor: c.accent + '18', borderColor: c.accent }]}
+                onPress={handleShareProfile}
+                activeOpacity={0.8}
+              >
+                <Icon name="share" size={14} color={c.accent} style={{ marginRight: 5 }} />
+                <Text style={[styles.shareProfileText, { color: c.accent }]}>Share Profile</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
 
@@ -273,6 +315,17 @@ const styles = StyleSheet.create({
   headerTextWrap: { flex: 1, marginLeft: 16, justifyContent: 'center', minWidth: 0 },
   displayName: { fontSize: 18, fontWeight: '700' },
   displayEmail: { fontSize: 14, marginTop: 4 },
+  shareProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  shareProfileText: { fontSize: 13, fontWeight: '700' },
   menuCard: {
     borderRadius: 12,
     borderWidth: 1,

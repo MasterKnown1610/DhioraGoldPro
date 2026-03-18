@@ -10,11 +10,13 @@ import {
   Dimensions,
   FlatList,
   Linking,
+  Share,
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Context from '../../context/Context';
+import { getPublicCatalogsByTenant, getPublicCatalog } from '../../service/catalogService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HORIZONTAL_PADDING = 16;
@@ -30,6 +32,8 @@ const ShopDetailsScreen = ({ route, navigation }) => {
   const shopId = route?.params?.shopId;
   const needsFetch = !!shopId && !passedShop?.shopName;
   const [loading, setLoading] = useState(needsFetch);
+  const [catalogPreviewLoading, setCatalogPreviewLoading] = useState(false);
+  const [catalogPreviewImages, setCatalogPreviewImages] = useState([]);
 
   const shop = passedShop?.shopName ? passedShop : (shops.singleShop || passedShop);
   const images = shop?.images?.length
@@ -43,6 +47,34 @@ const ShopDetailsScreen = ({ route, navigation }) => {
       shops.getShopById(shopId).finally(() => setLoading(false));
     }
   }, [shopId, needsFetch]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCatalogPreview = async () => {
+      if (!shop?._id) return;
+      setCatalogPreviewLoading(true);
+      try {
+        const cats = await getPublicCatalogsByTenant(shop._id, 'SHOP');
+        if (!cats?.length) {
+          if (!cancelled) setCatalogPreviewImages([]);
+          return;
+        }
+        const detail = await getPublicCatalog(cats[0]._id);
+        const imgs = (detail?.images || []).slice(0, 5);
+        if (!cancelled) setCatalogPreviewImages(imgs);
+      } catch (_) {
+        if (!cancelled) setCatalogPreviewImages([]);
+      } finally {
+        if (!cancelled) setCatalogPreviewLoading(false);
+      }
+    };
+
+    loadCatalogPreview();
+    return () => {
+      cancelled = true;
+    };
+  }, [shop?._id]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef(null);
@@ -78,6 +110,28 @@ const ShopDetailsScreen = ({ route, navigation }) => {
   const displayName = shop?.shopName || shop?.name;
   const displayAddress = shop?.address;
   const about = shop?.about || `${displayName} - Gold & jewelry shop. Visit us at ${displayAddress || ''}`;
+  const sellerPhoneDigits = (shop?.whatsappNumber || shop?.phoneNumber || '').replace(/\D/g, '');
+
+  const handleShare = async () => {
+    if (!shop?._id) return;
+    const url = `https://dhiora-gold-backend.vercel.app/share/shop/${shop._id}`;
+    try {
+      await Share.share({
+        message: `Check out ${displayName} on Dhiora Gold!\n${url}`,
+        url,
+      });
+    } catch (_) {}
+  };
+
+  const openCatalog = () => {
+    if (!shop?._id) return;
+    navigation.navigate('Public Catalog', {
+      tenantId: shop._id,
+      tenantType: 'SHOP',
+      tenantName: displayName,
+      sellerPhone: sellerPhoneDigits,
+    });
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
@@ -86,7 +140,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
           <Icon name="arrow-back" size={24} color={c.accent} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: c.text }]}>Shop Details</Text>
-        <TouchableOpacity style={styles.headerBtn} hitSlop={12}>
+        <TouchableOpacity style={styles.headerBtn} hitSlop={12} onPress={handleShare}>
           <Icon name="share" size={24} color={c.accent} />
         </TouchableOpacity>
       </View>
@@ -149,6 +203,40 @@ const ShopDetailsScreen = ({ route, navigation }) => {
           <View style={styles.addressRow}>
             <Icon name="location-on" size={18} color={c.accent} style={styles.pinIcon} />
             <Text style={[styles.address, { color: c.text }]}>{displayAddress}</Text>
+          </View>
+        ) : null}
+
+        {/* Catalog preview (top) */}
+        {shop?._id ? (
+          <View style={styles.catalogPreviewWrap}>
+            <View style={styles.catalogPreviewHeader}>
+              <Text style={[styles.catalogPreviewTitle, { color: c.text }]}>Catalog</Text>
+              <TouchableOpacity onPress={openCatalog} activeOpacity={0.8} hitSlop={10} style={styles.viewMoreBtn}>
+                <Text style={[styles.viewMoreText, { color: c.accent }]}>View more</Text>
+                <Icon name="chevron-right" size={18} color={c.accent} />
+              </TouchableOpacity>
+            </View>
+
+            {catalogPreviewLoading ? (
+              <View style={styles.catalogPreviewLoading}>
+                <ActivityIndicator size="small" color={c.accent} />
+              </View>
+            ) : catalogPreviewImages.length > 0 ? (
+              <FlatList
+                data={catalogPreviewImages}
+                keyExtractor={(item) => item._id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.catalogPreviewList}
+                renderItem={({ item }) => (
+                  <TouchableOpacity activeOpacity={0.85} onPress={openCatalog} style={[styles.previewCard, { borderColor: c.border }]}>
+                    <Image source={{ uri: item.imageUrl }} style={styles.previewImage} resizeMode="cover" />
+                  </TouchableOpacity>
+                )}
+              />
+            ) : (
+              <Text style={[styles.catalogPreviewEmpty, { color: c.textSecondary }]}>No catalog available yet.</Text>
+            )}
           </View>
         ) : null}
 
@@ -284,6 +372,51 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 20,
   },
+  catalogPreviewWrap: {
+    marginBottom: 22,
+  },
+  catalogPreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  catalogPreviewTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  viewMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewMoreText: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginRight: 2,
+  },
+  catalogPreviewLoading: {
+    height: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catalogPreviewEmpty: {
+    fontSize: 13,
+  },
+  catalogPreviewList: {
+    paddingRight: 12,
+  },
+  previewCard: {
+    width: 110,
+    height: 96,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    marginRight: 12,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
   contactCard: {
     borderRadius: 16,
     padding: 20,
@@ -322,6 +455,7 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     gap: 12,
+    marginBottom: 12,
   },
   actionBtn: {
     flex: 1,

@@ -11,7 +11,7 @@ const CHECKOUT_OPEN_TIMEOUT_MS = 25000;
  * Create order for subscription. Returns { orderId, razorpayOrderId, amount, key_id } for checkout.
  * @param {string} type - 'user_subscription' | 'shop_subscription'
  */
-export async function createOrder(type) {
+export async function createOrder(type, extra = {}) {
   const token = await AsyncStorage.getItem(TOKEN_KEY);
   if (!token) throw new Error('Login required');
   const res = await fetch(API_URLS.PaymentCreateOrder, {
@@ -20,7 +20,7 @@ export async function createOrder(type) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ type }),
+    body: JSON.stringify({ type, ...(extra || {}) }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || 'Failed to create order');

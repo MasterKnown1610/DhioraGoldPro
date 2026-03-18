@@ -1,6 +1,6 @@
 // Change to your machine IP when testing on device (e.g. 'http://192.168.0.121:5000')
-export const BASE_URL = 'https://dhiora-gold-backend.vercel.app';
-// export const BASE_URL = 'http://localhost:5000';
+// export const BASE_URL = 'https://dhiora-gold-backend.vercel.app';
+export const BASE_URL = 'http://localhost:5000';
 
 export const API_URLS = {
   // Auth
@@ -46,6 +46,18 @@ export const API_URLS = {
   // Referral
   ReferralMe: `${BASE_URL}/api/referral/me`,
   ReferralRequestRefund: `${BASE_URL}/api/referral/request-refund`,
+
+  // Catalogs (owner, requires auth)
+  CatalogSubscriptionStatus: `${BASE_URL}/api/catalogs/subscription-status`,
+  CatalogMy: `${BASE_URL}/api/catalogs/my`,
+  CatalogCreate: `${BASE_URL}/api/catalogs`,
+  CatalogImages: (id) => `${BASE_URL}/api/catalogs/${id}/images`,
+  CatalogImagesBulk: (id) => `${BASE_URL}/api/catalogs/${id}/images/bulk`,
+  CatalogDeleteImage: (catalogId, imageId) => `${BASE_URL}/api/catalogs/${catalogId}/images/${imageId}`,
+
+  // Public catalog (no auth)
+  PublicCatalog: (id) => `${BASE_URL}/api/public/catalogs/${id}`,
+  PublicCatalogsByTenant: (tenantId) => `${BASE_URL}/api/public/catalogs/by-tenant/${tenantId}`,
 
   // Health
   Health: `${BASE_URL}/health`,

@@ -99,6 +99,7 @@
     "balance": "Balance: ₹{{balance}} (₹1 per referred user)",
     "requestWithdrawal": "Request Withdrawal",
     "earnGold": "Earn Gold (watch ad)",
+    "myCatalog": "My Product Catalog",
     "logoutConfirm": "Are you sure you want to logout?",
     "languageOption": "Language (display only – forms accept English)"
   },
